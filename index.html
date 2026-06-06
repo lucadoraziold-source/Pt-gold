@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Active PT Manager</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#ff6b00">
+<meta name="theme-color" content="#E0A82E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Active PT">
@@ -15,14 +15,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0d0d0d;
-  --surface: #181818;
-  --surface2: #222222;
-  --surface3: #2a2a2a;
-  --border: #333333;
-  --accent: #ff6b00;
-  --accent2: #ff8c3a;
-  --accent-glow: rgba(255,107,0,.18);
+  --bg: #0a0a0b;
+  --surface: #151517;
+  --surface2: #1e1e22;
+  --surface3: #28282e;
+  --border: #34302a;
+  --accent: #E0A82E;
+  --accent2: #F4C95D;
+  --accent-glow: rgba(224,168,46,.18);
   --text: #f5f5f5;
   --muted: #888888;
   --muted2: #555555;
@@ -57,8 +57,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 select option { background: var(--surface2); }
 button { cursor: pointer; font-family: inherit; transition: all .18s; }
 .btn { padding: 11px 22px; border-radius: 50px; font-size: 14px; font-weight: 600; border: none; display: inline-flex; align-items: center; gap: 7px; }
-.btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: 0 4px 16px rgba(255,107,0,.35); }
-.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(255,107,0,.5); }
+.btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: 0 4px 16px rgba(224,168,46,.35); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(224,168,46,.5); }
 .btn-secondary { background: var(--surface2); color: var(--text); border: 1.5px solid var(--border); }
 .btn-secondary:hover { background: var(--surface3); border-color: var(--accent); color: var(--accent); }
 .btn-danger { background: transparent; color: var(--danger); border: 1.5px solid var(--danger); border-radius: 50px; }
@@ -78,19 +78,19 @@ button { cursor: pointer; font-family: inherit; transition: all .18s; }
 .tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 50px; font-size: 11px; font-weight: 600; }
 #app { display: flex; min-height: 100vh; }
 #sidebar { width: 230px; background: var(--surface); border-right: 1.5px solid var(--border); display: flex; flex-direction: column; padding: 0; position: sticky; top: 0; height: 100vh; flex-shrink: 0; overflow: hidden; }
-.sidebar-logo { padding: 28px 24px 22px; border-bottom: 1.5px solid var(--border); margin-bottom: 12px; background: linear-gradient(180deg, rgba(255,107,0,.08) 0%, transparent 100%); }
-.logo-pt { font-family: 'Bebas Neue'; font-size: 42px; letter-spacing: 3px; color: var(--accent); line-height: 1; text-shadow: 0 0 30px rgba(255,107,0,.4); }
+.sidebar-logo { padding: 28px 24px 22px; border-bottom: 1.5px solid var(--border); margin-bottom: 12px; background: linear-gradient(180deg, rgba(224,168,46,.08) 0%, transparent 100%); }
+.logo-pt { font-family: 'Bebas Neue'; font-size: 42px; letter-spacing: 3px; color: var(--accent); line-height: 1; text-shadow: 0 0 30px rgba(224,168,46,.4); }
 .logo-sub { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: 3px; margin-top: 2px; }
 #main { flex: 1; padding: 32px; overflow: auto; min-width: 0; }
 .nav-item { display: flex; align-items: center; gap: 12px; padding: 13px 24px; border: none; background: transparent; color: var(--muted); font-size: 14px; font-weight: 500; cursor: pointer; width: 100%; text-align: left; transition: all .18s; position: relative; }
 .nav-item::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 0; background: var(--accent); border-radius: 0 3px 3px 0; transition: height .2s; }
-.nav-item.active { color: var(--text); background: rgba(255,107,0,.08); font-weight: 600; }
+.nav-item.active { color: var(--text); background: rgba(224,168,46,.08); font-weight: 600; }
 .nav-item.active::before { height: 60%; }
 .nav-item:hover:not(.active) { color: var(--text); background: var(--surface2); }
 .nav-icon { font-size: 20px; width: 24px; text-align: center; }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; backdrop-filter: blur(4px); }
 .modal { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 540px; max-height: 92vh; overflow: auto; box-shadow: 0 24px 80px rgba(0,0,0,.6); }
-.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 22px 26px; border-bottom: 1.5px solid var(--border); background: linear-gradient(135deg, rgba(255,107,0,.06) 0%, transparent 60%); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 22px 26px; border-bottom: 1.5px solid var(--border); background: linear-gradient(135deg, rgba(224,168,46,.06) 0%, transparent 60%); }
 .modal-header span { font-family: 'Bebas Neue'; font-size: 24px; letter-spacing: 1.5px; }
 .modal-close { background: var(--surface2); border: none; color: var(--muted); font-size: 18px; cursor: pointer; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all .15s; }
 .modal-close:hover { background: var(--danger); color: #fff; }
@@ -99,14 +99,14 @@ button { cursor: pointer; font-family: inherit; transition: all .18s; }
 .cal-day-header { text-align: center; font-size: 10px; color: var(--muted); font-weight: 700; padding: 6px 0; text-transform: uppercase; letter-spacing: .5px; }
 .cal-cell { min-height: 54px; padding: 7px; border-radius: var(--radius-sm); cursor: pointer; border: 1.5px solid transparent; transition: all .15s; }
 .cal-cell:hover { background: var(--surface2); }
-.cal-cell.today { border-color: rgba(255,107,0,.4); background: rgba(255,107,0,.06); }
-.cal-cell.selected { background: var(--accent); border-color: var(--accent); box-shadow: 0 4px 16px rgba(255,107,0,.4); }
+.cal-cell.today { border-color: rgba(224,168,46,.4); background: rgba(224,168,46,.06); }
+.cal-cell.selected { background: var(--accent); border-color: var(--accent); box-shadow: 0 4px 16px rgba(224,168,46,.4); }
 .cal-cell.selected .cal-num { color: #fff; font-weight: 700; }
 .cal-num { font-size: 13px; font-weight: 600; }
 .cal-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); display: inline-block; margin: 1px; }
 .cal-cell.selected .cal-dot { background: rgba(255,255,255,.7); }
 .stats-grid { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 26px; }
-.stat-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 20px 22px; flex: 1; min-width: 130px; }
+.stat-card { background: linear-gradient(145deg, var(--surface) 0%, var(--surface2) 100%); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 20px 22px; flex: 1; min-width: 130px; box-shadow: inset 0 1px 0 rgba(224,168,46,.08); }
 .stat-icon { font-size: 28px; }
 .stat-value { font-family: 'Bebas Neue'; font-size: 30px; letter-spacing: 1px; margin-top: 8px; line-height: 1; }
 .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 500; }
@@ -114,7 +114,7 @@ button { cursor: pointer; font-family: inherit; transition: all .18s; }
 .progress-bar { height: 100%; border-radius: 50px; transition: width .4s cubic-bezier(.4,0,.2,1); }
 .row-item { display: flex; justify-content: space-between; align-items: center; padding: 13px 0; border-bottom: 1px solid var(--border); font-size: 14px; gap: 10px; }
 .row-item:last-child { border-bottom: none; }
-.avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg,rgba(255,107,0,.2),rgba(255,107,0,.06)); border: 1.5px solid rgba(255,107,0,.3); display: flex; align-items: center; justify-content: center; color: var(--accent); font-weight: 700; font-size: 18px; flex-shrink: 0; }
+.avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg,rgba(224,168,46,.2),rgba(224,168,46,.06)); border: 1.5px solid rgba(224,168,46,.3); display: flex; align-items: center; justify-content: center; color: var(--accent); font-weight: 700; font-size: 18px; flex-shrink: 0; }
 .avatar-lg { width: 58px; height: 58px; font-size: 24px; }
 .seduta-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 12px; }
 .seduta-num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: 'Bebas Neue'; font-size: 14px; }
@@ -137,7 +137,7 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   .bnav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 0; border: none; background: transparent; color: var(--muted); font-size: 8px; font-weight: 600; cursor: pointer; transition: all .15s; flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 13%; }
   .bnav-icon { font-size: 19px; line-height: 1; }
   .bnav-item.active { color: var(--accent); }
-  .bnav-item.active .bnav-icon { filter: drop-shadow(0 0 6px rgba(255,107,0,.6)); }
+  .bnav-item.active .bnav-icon { filter: drop-shadow(0 0 6px rgba(224,168,46,.6)); }
 
   /* Mobile header */
   #mobile-header { display: flex !important; }
@@ -207,7 +207,7 @@ html, body { max-width: 100vw; overflow-x: hidden; }
 .page { display: none; }
 .page.active { display: block; }
 .section-label { font-family: 'Bebas Neue'; font-size: 12px; letter-spacing: 4px; color: var(--muted); margin-bottom: 2px; }
-.page-title { font-family: 'Bebas Neue'; font-size: 42px; letter-spacing: 2px; line-height: 1; margin-bottom: 28px; }
+.page-title { font-family: 'Bebas Neue'; font-size: 42px; letter-spacing: 2px; line-height: 1; margin-bottom: 28px; background: linear-gradient(135deg, #F4C95D 0%, #E0A82E 50%, #B8860B 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 .empty-state { text-align: center; color: var(--muted); padding: 48px 0; font-size: 14px; }
 .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 .flex-gap { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -313,7 +313,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         <div class="card" style="margin-top:14px;background:var(--surface2);border-color:var(--border)">
           <div class="bebas" style="font-size:13px;letter-spacing:2px;color:var(--muted);margin-bottom:14px">🔄 SINCRONIZZA CALENDARIO</div>
           <div style="display:flex;flex-direction:column;gap:10px">
-            <button onclick="exportAllICS()" style="display:flex;align-items:center;gap:10px;background:rgba(255,107,0,.08);border:1.5px solid var(--accent);color:var(--text);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;width:100%">
+            <button onclick="exportAllICS()" style="display:flex;align-items:center;gap:10px;background:rgba(224,168,46,.08);border:1.5px solid var(--accent);color:var(--text);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;width:100%">
               <span style="font-size:22px">📱</span>
               <div><div style="font-weight:700">Esporta su Calendario iPhone</div><div style="font-size:11px;color:var(--muted);font-weight:400;margin-top:2px">Scarica file .ICS → apri → aggiungi a Apple Calendar</div></div>
             </button>
@@ -521,7 +521,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
     <!-- PROFILO PT -->
     <div class="card" style="margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
-        <div style="width:44px;height:44px;border-radius:50%;background:var(--accent-glow);border:1.5px solid rgba(255,107,0,.3);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🏋️</div>
+        <div style="width:44px;height:44px;border-radius:50%;background:var(--accent-glow);border:1.5px solid rgba(224,168,46,.3);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🏋️</div>
         <div>
           <div style="font-weight:700;font-size:16px">Profilo Personal Trainer</div>
           <div class="text-muted" style="font-size:12px;margin-top:2px">Appare nelle ricevute PDF e liberatorie</div>
@@ -595,7 +595,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · versione 2.7</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 2.7</div>
     </div>
   </div>
 
@@ -925,7 +925,7 @@ function selectCalDay(ds){calSelected=ds;document.getElementById('cal-selected-t
 function renderCalDaySessions(){
   const sessions=DB.sessions.filter(s=>s.date===calSelected).sort((a,b)=>a.time.localeCompare(b.time)),clients=DB.clients,el=document.getElementById('cal-day-sessions');
   if(sessions.length===0){el.innerHTML='<div class="card"><div class="empty-state">Nessuna sessione</div></div>';return;}
-  el.innerHTML=sessions.map(s=>{const cl=clients.find(c=>c.id===s.clientId);return`<div class="card" style="margin-bottom:10px;border-left:3px solid ${s.done?'var(--success)':'var(--accent)'}"><div onclick="openSessionModal('${s.id}')" style="cursor:pointer"><div class="flex-between"><div><div style="font-weight:600;font-size:15px">${cl?.name||'—'}</div><div class="text-muted" style="font-size:12px;margin-top:3px">🕐 ${s.time} · ${s.duration}min</div>${s.note?`<div class="text-muted" style="font-size:12px;margin-top:4px;font-style:italic">"${s.note}"</div>`:''}</div><span class="tag" style="background:${s.done?'rgba(46,204,113,.15)':'rgba(255,107,0,.12)'};color:${s.done?'var(--success)':'var(--accent)'}">${s.done?'✓ Fatto':'Prev.'}</span></div></div><div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--border);padding-top:10px"><button onclick="addToGoogleCalendar(${JSON.stringify(s).replace(/'/g,'\\u0027')})" style="flex:1;background:rgba(66,133,244,.1);border:1px solid #4285f4;color:#4285f4;border-radius:50px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer">📅 Google Cal</button><button onclick="exportToICS(${JSON.stringify(s).replace(/'/g,'\\u0027')})" style="flex:1;background:rgba(255,107,0,.1);border:1px solid var(--accent);color:var(--accent);border-radius:50px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer">📥 .ICS</button></div></div>`;}).join('');
+  el.innerHTML=sessions.map(s=>{const cl=clients.find(c=>c.id===s.clientId);return`<div class="card" style="margin-bottom:10px;border-left:3px solid ${s.done?'var(--success)':'var(--accent)'}"><div onclick="openSessionModal('${s.id}')" style="cursor:pointer"><div class="flex-between"><div><div style="font-weight:600;font-size:15px">${cl?.name||'—'}</div><div class="text-muted" style="font-size:12px;margin-top:3px">🕐 ${s.time} · ${s.duration}min</div>${s.note?`<div class="text-muted" style="font-size:12px;margin-top:4px;font-style:italic">"${s.note}"</div>`:''}</div><span class="tag" style="background:${s.done?'rgba(46,204,113,.15)':'rgba(224,168,46,.12)'};color:${s.done?'var(--success)':'var(--accent)'}">${s.done?'✓ Fatto':'Prev.'}</span></div></div><div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--border);padding-top:10px"><button onclick="addToGoogleCalendar(${JSON.stringify(s).replace(/'/g,'\\u0027')})" style="flex:1;background:rgba(66,133,244,.1);border:1px solid #4285f4;color:#4285f4;border-radius:50px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer">📅 Google Cal</button><button onclick="exportToICS(${JSON.stringify(s).replace(/'/g,'\\u0027')})" style="flex:1;background:rgba(224,168,46,.1);border:1px solid var(--accent);color:var(--accent);border-radius:50px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer">📥 .ICS</button></div></div>`;}).join('');
 }
 function calPrev(){if(calMonth===0){calMonth=11;calYear--;}else calMonth--;renderCalendar();}
 function calNext(){if(calMonth===11){calMonth=0;calYear++;}else calMonth++;renderCalendar();}
@@ -1052,7 +1052,7 @@ function renderClientDetail(id){
     <div class="grid2-detail" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
       <div class="card">
         <div class="bebas" style="font-size:13px;letter-spacing:3px;margin-bottom:14px;color:var(--accent)">DATI PERSONALI</div>
-        ${cl.phone?`<div class="row-item"><span class="text-muted" style="font-size:12px">📞 Telefono</span><a href="tel:${cl.phone}" style="font-size:14px;font-weight:600;color:var(--accent);text-decoration:none;display:flex;align-items:center;gap:6px">${cl.phone} <span style="font-size:10px;background:rgba(255,107,0,.15);padding:2px 8px;border-radius:50px">CHIAMA</span></a></div>`:''}
+        ${cl.phone?`<div class="row-item"><span class="text-muted" style="font-size:12px">📞 Telefono</span><a href="tel:${cl.phone}" style="font-size:14px;font-weight:600;color:var(--accent);text-decoration:none;display:flex;align-items:center;gap:6px">${cl.phone} <span style="font-size:10px;background:rgba(224,168,46,.15);padding:2px 8px;border-radius:50px">CHIAMA</span></a></div>`:''}
         ${cl.phone?`<div class="row-item"><span class="text-muted" style="font-size:12px">💬 WhatsApp</span><a href="https://wa.me/${waNumber(cl.phone)}" target="_blank" style="font-size:14px;font-weight:600;color:#25D366;text-decoration:none;display:flex;align-items:center;gap:6px">${cl.phone} <span style="font-size:10px;background:rgba(37,211,102,.15);padding:2px 8px;border-radius:50px">APRI</span></a></div>`:''}
         ${cl.email?`<div class="row-item"><span class="text-muted" style="font-size:12px">📧 Email</span><a href="mailto:${cl.email}" style="font-size:13px;font-weight:600;color:var(--info);text-decoration:none;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:62%"><span style="word-break:break-all">${cl.email}</span> <span style="font-size:10px;background:rgba(52,152,219,.15);padding:2px 8px;border-radius:50px;white-space:nowrap;flex-shrink:0">SCRIVI</span></a></div>`:''}
         ${cl.birthdate?`<div class="row-item"><span class="text-muted" style="font-size:12px">🎂 Data di nascita</span><span style="font-size:14px;font-weight:600">${fmt(cl.birthdate)} ${(()=>{const b=new Date(cl.birthdate);const today=new Date();let age=today.getFullYear()-b.getFullYear();const m=today.getMonth()-b.getMonth();if(m<0||(m===0&&today.getDate()<b.getDate()))age--;return '<span style="font-size:12px;color:var(--muted);font-weight:400">('+age+' anni)</span>';})()}</span></div>`:''}
@@ -1191,7 +1191,7 @@ function renderPackages(){
       <div id="pkg-history-${p.id}" class="hidden" style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
         <div style="font-size:11px;color:var(--accent);font-weight:700;letter-spacing:2px;margin-bottom:10px">SEDUTE SCALATE</div>
         ${pkgDed.length===0?'<div class="text-muted" style="font-size:13px;text-align:center;padding:8px 0">Nessuna seduta scalata</div>':pkgDed.sort((a,b)=>b.date.localeCompare(a.date)).map((d,i)=>`<div class="seduta-item"><div class="seduta-num">${pkgDed.length-i}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${fmt(d.date)}</div>${d.note?`<div class="text-muted" style="font-size:12px;margin-top:2px;font-style:italic">"${d.note}"</div>`:''}</div><button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;color:var(--danger)" onclick="deleteDeduction('${d.id}','${p.id}')">✕</button></div>`).join('')}
-        ${pkgPayments.length>0?`<div style="font-size:11px;color:var(--success);font-weight:700;letter-spacing:2px;margin:14px 0 10px">PAGAMENTI RICEVUTI</div>${pkgPayments.sort((a,b)=>b.date.localeCompare(a.date)).map(py=>`<div style="background:rgba(46,204,113,.06);border:1px solid rgba(46,204,113,.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px"><div style="font-size:20px">💳</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--success)">+${fmtMoney(py.amount)}</div><div class="text-muted" style="font-size:12px;margin-top:2px">${fmt(py.date)} · ${py.method}${py.note?' · '+py.note:''}</div></div><button onclick="generateReceiptPDF('${py.id}','${p.id}')" style="background:rgba(255,107,0,.12);border:1px solid var(--accent);color:var(--accent);border-radius:50px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">🧾 PDF</button><button class="btn btn-ghost" style="font-size:11px;color:var(--danger);padding:4px 8px" onclick="deletePayment('${py.id}','${p.id}')">✕</button></div>`).join('')}`:''}
+        ${pkgPayments.length>0?`<div style="font-size:11px;color:var(--success);font-weight:700;letter-spacing:2px;margin:14px 0 10px">PAGAMENTI RICEVUTI</div>${pkgPayments.sort((a,b)=>b.date.localeCompare(a.date)).map(py=>`<div style="background:rgba(46,204,113,.06);border:1px solid rgba(46,204,113,.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px"><div style="font-size:20px">💳</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--success)">+${fmtMoney(py.amount)}</div><div class="text-muted" style="font-size:12px;margin-top:2px">${fmt(py.date)} · ${py.method}${py.note?' · '+py.note:''}</div></div><button onclick="generateReceiptPDF('${py.id}','${p.id}')" style="background:rgba(224,168,46,.12);border:1px solid var(--accent);color:var(--accent);border-radius:50px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">🧾 PDF</button><button class="btn btn-ghost" style="font-size:11px;color:var(--danger);padding:4px 8px" onclick="deletePayment('${py.id}','${p.id}')">✕</button></div>`).join('')}`:''}
       </div>
     </div>`;
   }).join('');
@@ -1286,7 +1286,7 @@ function renderAccounting(){
     const cl=clients.find(c=>c.id===t.clientId);
     const col=t.type==='entrata'?'var(--success)':'var(--danger)';
     const isAuto=t.auto===true;
-    const badge=isAuto?`<span style="background:rgba(255,107,0,.15);color:var(--accent);font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;margin-left:6px;letter-spacing:.5px">AUTO</span>`:'';
+    const badge=isAuto?`<span style="background:rgba(224,168,46,.15);color:var(--accent);font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;margin-left:6px;letter-spacing:.5px">AUTO</span>`:'';
     return `<div class="row-item">
       <div style="width:42px;height:42px;border-radius:50%;background:${t.type==='entrata'?'rgba(46,204,113,.12)':'rgba(255,59,59,.12)'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${isAuto?'📦':t.type==='entrata'?'⬆️':'⬇️'}</div>
       <div style="flex:1;margin:0 14px;min-width:0">
@@ -1615,12 +1615,12 @@ function generateReceiptPDF(paymentId, packageId) {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #fff; color: #1a1a1a; padding: 40px; max-width: 600px; margin: 0 auto; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 3px solid #ff6b00; padding-bottom: 20px; }
-  .logo { font-size: 42px; font-weight: 900; letter-spacing: 3px; color: #ff6b00; line-height: 1; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 3px solid #E0A82E; padding-bottom: 20px; }
+  .logo { font-size: 42px; font-weight: 900; letter-spacing: 3px; color: #E0A82E; line-height: 1; }
   .logo span { color: #1a1a1a; font-size: 14px; letter-spacing: 2px; display: block; margin-top: 4px; }
   .receipt-num { text-align: right; font-size: 13px; color: #666; }
   .receipt-num strong { font-size: 16px; color: #1a1a1a; display: block; }
-  .badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: 1px; margin-top: 8px; background: ${isSaldo ? '#e8f8ef' : '#fff3e6'}; color: ${isSaldo ? '#27ae60' : '#ff6b00'}; border: 1.5px solid ${isSaldo ? '#27ae60' : '#ff6b00'}; }
+  .badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: 1px; margin-top: 8px; background: ${isSaldo ? '#e8f8ef' : '#fff3e6'}; color: ${isSaldo ? '#27ae60' : '#E0A82E'}; border: 1.5px solid ${isSaldo ? '#27ae60' : '#E0A82E'}; }
   .section { margin-bottom: 28px; }
   .section-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #999; text-transform: uppercase; margin-bottom: 10px; }
   .client-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
@@ -1631,8 +1631,8 @@ function generateReceiptPDF(paymentId, packageId) {
   .amount-box { background: #fff; border-radius: 8px; padding: 12px 16px; border: 1.5px solid #eee; }
   .amount-label { font-size: 10px; color: #999; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
   .amount-value { font-size: 22px; font-weight: 800; margin-top: 4px; }
-  .this-payment { background: #fff8f0; border-color: #ff6b00; }
-  .this-payment .amount-value { color: #ff6b00; }
+  .this-payment { background: #fff8f0; border-color: #E0A82E; }
+  .this-payment .amount-value { color: #E0A82E; }
   .remaining-zero { background: #f0fff6; border-color: #27ae60; }
   .remaining-zero .amount-value { color: #27ae60; }
   .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
@@ -1640,7 +1640,7 @@ function generateReceiptPDF(paymentId, packageId) {
   .detail-label { color: #666; }
   .detail-value { font-weight: 600; }
   .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; font-size: 11px; color: #999; text-align: center; line-height: 1.8; }
-  .print-btn { position: fixed; top: 20px; right: 20px; background: #ff6b00; color: #fff; border: none; padding: 12px 24px; border-radius: 50px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .print-btn { position: fixed; top: 20px; right: 20px; background: #E0A82E; color: #fff; border: none; padding: 12px 24px; border-radius: 50px; font-size: 14px; font-weight: 700; cursor: pointer; }
   @media print { .print-btn { display: none; } body { padding: 20px; } }
 </style></head><body>
 <button class="print-btn" onclick="window.print()">🖨 Stampa / PDF</button>
@@ -1719,8 +1719,8 @@ function generateGDPR(clientId) {
   body { font-family: 'Times New Roman', serif; background:#fff; color:#1a1a1a; padding:40px; font-size:13px; line-height:1.7; max-width:720px; margin:0 auto; }
   h1 { font-size:18px; text-align:center; margin-bottom:6px; text-transform:uppercase; letter-spacing:1px; }
   h2 { font-size:14px; text-transform:uppercase; letter-spacing:1px; margin:28px 0 10px; border-bottom:1.5px solid #1a1a1a; padding-bottom:4px; }
-  .header { text-align:center; margin-bottom:32px; border-bottom:2px solid #ff6b00; padding-bottom:20px; }
-  .pt-logo { font-size:36px; font-weight:900; color:#ff6b00; letter-spacing:4px; font-family:Arial,sans-serif; }
+  .header { text-align:center; margin-bottom:32px; border-bottom:2px solid #E0A82E; padding-bottom:20px; }
+  .pt-logo { font-size:36px; font-weight:900; color:#E0A82E; letter-spacing:4px; font-family:Arial,sans-serif; }
   .subtitle { font-size:11px; letter-spacing:3px; color:#666; text-transform:uppercase; margin-top:4px; }
   .parties { background:#f9f9f9; border:1px solid #ddd; border-radius:6px; padding:16px 20px; margin:20px 0; }
   .field-row { display:flex; gap:10px; margin-bottom:8px; }
@@ -1731,7 +1731,7 @@ function generateGDPR(clientId) {
   .checkbox-box { width:16px; height:16px; border:2px solid #1a1a1a; flex-shrink:0; margin-top:2px; }
   .sign-row { display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:40px; }
   .sign-box { border-top:1px solid #1a1a1a; padding-top:8px; font-size:12px; color:#666; }
-  .print-btn { position:fixed; top:20px; right:20px; background:#ff6b00; color:#fff; border:none; padding:12px 24px; border-radius:50px; font-size:14px; font-weight:700; cursor:pointer; font-family:Arial,sans-serif; }
+  .print-btn { position:fixed; top:20px; right:20px; background:#E0A82E; color:#fff; border:none; padding:12px 24px; border-radius:50px; font-size:14px; font-weight:700; cursor:pointer; font-family:Arial,sans-serif; }
   @media print { .print-btn { display:none; } body { padding:20px; } }
 </style></head><body>
 <button class="print-btn" onclick="window.print()">🖨 Stampa / PDF</button>
@@ -2219,7 +2219,7 @@ function renderWeekView() {
     const ds = toDateStr(d);
     const isToday = ds === todayStr();
     const dayName = DAYS[d.getDay()];
-    html += `<div style="background:${isToday?'rgba(255,107,0,.1)':'var(--surface2)'};border-bottom:1px solid var(--border);border-left:1px solid var(--border);padding:8px 4px;text-align:center;cursor:pointer" onclick="selectCalDay('${ds}')">
+    html += `<div style="background:${isToday?'rgba(224,168,46,.1)':'var(--surface2)'};border-bottom:1px solid var(--border);border-left:1px solid var(--border);padding:8px 4px;text-align:center;cursor:pointer" onclick="selectCalDay('${ds}')">
       <div style="font-size:10px;color:var(--muted);font-weight:700">${dayName}</div>
       <div style="font-size:${isToday?'16':'14'}px;font-weight:${isToday?'800':'600'};color:${isToday?'var(--accent)':'var(--text)'};margin-top:2px">${d.getDate()}</div>
     </div>`;
@@ -2230,10 +2230,10 @@ function renderWeekView() {
     days.forEach(d => {
       const ds = toDateStr(d);
       const daySessions = sessions.filter(s => s.date === ds && s.time && s.time.startsWith(h));
-      html += `<div style="border-top:1px solid var(--border);border-left:1px solid var(--border);min-height:44px;padding:2px;position:relative;background:${toDateStr(d)===todayStr()?'rgba(255,107,0,.03)':''}">`;
+      html += `<div style="border-top:1px solid var(--border);border-left:1px solid var(--border);min-height:44px;padding:2px;position:relative;background:${toDateStr(d)===todayStr()?'rgba(224,168,46,.03)':''}">`;
       daySessions.forEach(s => {
         const cl = clients.find(c => c.id === s.clientId);
-        html += `<div onclick="openSessionModal('${s.id}')" style="background:${s.done?'rgba(46,204,113,.2)':'rgba(255,107,0,.2)'};border-left:2px solid ${s.done?'var(--success)':'var(--accent)'};border-radius:4px;padding:3px 5px;font-size:10px;font-weight:600;cursor:pointer;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${s.time} ${cl?.name?.split(' ')[0]||'—'}</div>`;
+        html += `<div onclick="openSessionModal('${s.id}')" style="background:${s.done?'rgba(46,204,113,.2)':'rgba(224,168,46,.2)'};border-left:2px solid ${s.done?'var(--success)':'var(--accent)'};border-radius:4px;padding:3px 5px;font-size:10px;font-weight:600;cursor:pointer;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${s.time} ${cl?.name?.split(' ')[0]||'—'}</div>`;
       });
       html += `</div>`;
     });
@@ -2353,7 +2353,7 @@ function renderStats() {
       var y = TOP_PAD + (BAR_AREA - barH);
       var isCur = i === nowM && year === nowY;
       // bar
-      ctx.fillStyle = isCur ? '#ff6b00' : solid;
+      ctx.fillStyle = isCur ? '#E0A82E' : solid;
       var bw = slotW * 0.6, bx = x + slotW * 0.2;
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(bx, y, bw, barH, [3,3,0,0]);
@@ -2376,7 +2376,7 @@ function renderStats() {
   };
 
   renderBarChart('chart-income', monthlyIncome, 'rgba(46,204,113,.5)', '€');
-  renderBarChart('chart-sessions', monthlySessions, 'rgba(255,107,0,.5)');
+  renderBarChart('chart-sessions', monthlySessions, 'rgba(224,168,46,.5)');
 
   // Top clients (include manual package deductions, not just calendar sessions)
   const clientSessions = {};
@@ -2431,7 +2431,7 @@ function renderStats() {
     return `<div style="text-align:center">
       <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:6px">${c||''}</div>
       <div style="height:60px;background:var(--border);border-radius:6px;position:relative;overflow:hidden">
-        <div style="position:absolute;bottom:0;left:0;right:0;height:${pct}%;background:${pct>75?'var(--accent)':'rgba(255,107,0,.4)'};transition:height .4s"></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:${pct}%;background:${pct>75?'var(--accent)':'rgba(224,168,46,.4)'};transition:height .4s"></div>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:6px">${dayNames[i]}</div>
     </div>`;
@@ -2540,7 +2540,7 @@ function showPDFOverlay(html, filename) {
 
   // TOP BAR with close + print
   var pdfHeader = document.createElement('div');
-  pdfHeader.style.cssText = 'background:#ff6b00;padding:max(10px,env(safe-area-inset-top)) 14px 10px;display:flex;align-items:center;gap:8px;flex-shrink:0';
+  pdfHeader.style.cssText = 'background:#E0A82E;padding:max(10px,env(safe-area-inset-top)) 14px 10px;display:flex;align-items:center;gap:8px;flex-shrink:0';
 
   var pdfBtnClose = document.createElement('button');
   pdfBtnClose.innerHTML = '\u2715 Chiudi';
@@ -2553,7 +2553,7 @@ function showPDFOverlay(html, filename) {
 
   var pdfBtnPrint = document.createElement('button');
   pdfBtnPrint.innerHTML = '\uD83D\uDDA8 PDF';
-  pdfBtnPrint.style.cssText = 'background:#fff;color:#ff6b00;border:none;border-radius:50px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:13px;white-space:nowrap;flex-shrink:0';
+  pdfBtnPrint.style.cssText = 'background:#fff;color:#E0A82E;border:none;border-radius:50px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:13px;white-space:nowrap;flex-shrink:0';
   pdfBtnPrint.onclick = function(){ var f=document.getElementById('pdf-frame'); if(f&&f.contentWindow){ f.contentWindow.focus(); f.contentWindow.print(); } };
 
   pdfHeader.appendChild(pdfBtnClose);
@@ -2574,7 +2574,7 @@ function showPDFOverlay(html, filename) {
   bottomClose.onclick = function(e){ e.preventDefault(); e.stopPropagation(); overlay.remove(); };
   var bottomShare = document.createElement('button');
   bottomShare.innerHTML = '\uD83D\uDDA8 Stampa / Salva';
-  bottomShare.style.cssText = 'flex:1;background:#ff6b00;color:#fff;border:none;border-radius:50px;padding:14px;font-size:15px;font-weight:700;cursor:pointer';
+  bottomShare.style.cssText = 'flex:1;background:#E0A82E;color:#fff;border:none;border-radius:50px;padding:14px;font-size:15px;font-weight:700;cursor:pointer';
   bottomShare.onclick = function(){ var f=document.getElementById('pdf-frame'); if(f&&f.contentWindow){ f.contentWindow.focus(); f.contentWindow.print(); } };
   pdfBottom.appendChild(bottomClose);
   pdfBottom.appendChild(bottomShare);
@@ -2594,7 +2594,7 @@ function showPDFOverlay(html, filename) {
 // ─── LEADS ────────────────────────────────────────────────────────────────────
 var leadFilter='tutti', editingLead=null;
 var LS_C={da_contattare:'var(--warning)',contattato:'var(--success)',ricontattare:'var(--info)',gestito:'var(--accent)',non_gestito:'var(--danger)'};
-var LS_B={da_contattare:'rgba(243,156,18,.12)',contattato:'rgba(46,204,113,.12)',ricontattare:'rgba(52,152,219,.12)',gestito:'rgba(255,107,0,.12)',non_gestito:'rgba(255,59,59,.12)'};
+var LS_B={da_contattare:'rgba(243,156,18,.12)',contattato:'rgba(46,204,113,.12)',ricontattare:'rgba(52,152,219,.12)',gestito:'rgba(224,168,46,.12)',non_gestito:'rgba(255,59,59,.12)'};
 var LS_L={da_contattare:'📞 Da contattare',contattato:'✅ Contattato',ricontattare:'🔄 Da ricontattare',gestito:'🏆 Gestito',non_gestito:'❌ Non gestito'};
 
 function setLeadFilter(f){
@@ -2709,7 +2709,7 @@ function renderLeads(){
     // Pulsante GESTITO
     var bg=document.createElement('button');
     bg.textContent=isG?'🏆 Gestito':'✅ Gestito';
-    bg.style.cssText='flex:1;background:'+(isG?'rgba(255,107,0,.15)':'rgba(46,204,113,.1)')+';border:1.5px solid '+(isG?'var(--accent)':'var(--success)')+';color:'+(isG?'var(--accent)':'var(--success)')+';border-radius:50px;padding:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';
+    bg.style.cssText='flex:1;background:'+(isG?'rgba(224,168,46,.15)':'rgba(46,204,113,.1)')+';border:1.5px solid '+(isG?'var(--accent)':'var(--success)')+';color:'+(isG?'var(--accent)':'var(--success)')+';border-radius:50px;padding:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';
     if(!isG){(function(id){bg.onclick=function(e){e.stopPropagation();quickStatusLead(id,'gestito');};})(l.id);}
     else{bg.onclick=function(e){e.stopPropagation();};}
     row.appendChild(bg);
@@ -2816,13 +2816,13 @@ function leadsReport() {
   var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
     +'<style>body{font-family:-apple-system,Arial,sans-serif;margin:0;padding:24px;color:#1a1a1a;background:#fff}'
     +'h1{font-size:24px;margin:0 0 2px}.sub{color:#888;font-size:13px;margin-bottom:18px}'
-    +'.bar{height:4px;background:#ff6b00;border-radius:2px;margin-bottom:18px}'
+    +'.bar{height:4px;background:#E0A82E;border-radius:2px;margin-bottom:18px}'
     +'table{width:100%;border-collapse:collapse;font-size:14px}'
-    +'thead th{background:#ff6b00;color:#fff;padding:11px 8px;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.5px}'
+    +'thead th{background:#E0A82E;color:#fff;padding:11px 8px;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.5px}'
     +'thead th:nth-child(2),thead th:nth-child(3){text-align:center}'
     +'.summary{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}'
     +'.scard{flex:1;min-width:90px;background:#f7f7f7;border:1px solid #eee;border-radius:10px;padding:12px;text-align:center}'
-    +'.scard .n{font-size:24px;font-weight:800;color:#ff6b00}.scard .l{font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}'
+    +'.scard .n{font-size:24px;font-weight:800;color:#E0A82E}.scard .l{font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}'
     +'.footer{margin-top:24px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#999;text-align:center}'
     +'</style></head><body>'
     +'<h1>Report Contatti</h1>'
@@ -2989,14 +2989,14 @@ function exportMonthlyReport() {
       +'</div>';
   }).join('');
 
-  var html = '<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Helvetica Neue,Arial,sans-serif;padding:32px;color:#1a1a1a;font-size:13px}.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #ff6b00;padding-bottom:16px;margin-bottom:24px}.logo{font-size:36px;font-weight:900;color:#ff6b00;letter-spacing:3px}.period{text-align:right;font-size:13px;color:#666}.period strong{font-size:18px;color:#1a1a1a;display:block}.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px}.kpi{background:#f9f9f9;border-radius:8px;padding:14px 16px;text-align:center}.kpi .val{font-size:24px;font-weight:800;margin:6px 0}.kpi .lbl{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px}table{width:100%;border-collapse:collapse}th{background:#ff6b00;color:#fff;padding:10px 12px;text-align:left;font-size:12px}td{padding:9px 12px;font-size:12px}.footer{margin-top:28px;padding-top:16px;border-top:1px solid #eee;font-size:11px;color:#999;text-align:center}.tx-card{border:1px solid #eee;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff}.tx-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}.tx-date{font-size:12px;color:#888;font-weight:600}.tx-amt{font-size:16px;font-weight:800}.tx-desc{font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:2px}.tx-meta{font-size:12px;color:#666}.tx-total{display:flex;justify-content:space-between;align-items:center;background:#1a1a1a;color:#fff;border-radius:10px;padding:14px 16px;margin-top:14px;font-weight:700}.print-btn{position:fixed;top:16px;right:16px;background:#ff6b00;color:#fff;border:none;padding:10px 20px;border-radius:50px;font-weight:700;cursor:pointer;font-size:13px}@media print{.print-btn{display:none}}</style></head><body>'
+  var html = '<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Helvetica Neue,Arial,sans-serif;padding:32px;color:#1a1a1a;font-size:13px}.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #E0A82E;padding-bottom:16px;margin-bottom:24px}.logo{font-size:36px;font-weight:900;color:#E0A82E;letter-spacing:3px}.period{text-align:right;font-size:13px;color:#666}.period strong{font-size:18px;color:#1a1a1a;display:block}.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px}.kpi{background:#f9f9f9;border-radius:8px;padding:14px 16px;text-align:center}.kpi .val{font-size:24px;font-weight:800;margin:6px 0}.kpi .lbl{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px}table{width:100%;border-collapse:collapse}th{background:#E0A82E;color:#fff;padding:10px 12px;text-align:left;font-size:12px}td{padding:9px 12px;font-size:12px}.footer{margin-top:28px;padding-top:16px;border-top:1px solid #eee;font-size:11px;color:#999;text-align:center}.tx-card{border:1px solid #eee;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff}.tx-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}.tx-date{font-size:12px;color:#888;font-weight:600}.tx-amt{font-size:16px;font-weight:800}.tx-desc{font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:2px}.tx-meta{font-size:12px;color:#666}.tx-total{display:flex;justify-content:space-between;align-items:center;background:#1a1a1a;color:#fff;border-radius:10px;padding:14px 16px;margin-top:14px;font-weight:700}.print-btn{position:fixed;top:16px;right:16px;background:#E0A82E;color:#fff;border:none;padding:10px 20px;border-radius:50px;font-weight:700;cursor:pointer;font-size:13px}@media print{.print-btn{display:none}}</style></head><body>'
   +'<button class="print-btn" onclick="window.print()">🖨 Stampa PDF</button>'
   +'<div class="header"><div><div class="logo">ACTIVE PT</div>'+(profile.name?'<div style="margin-top:4px;font-size:13px;color:#666">'+profile.name+'</div>':'')+'</div>'
   +'<div class="period"><strong>'+MESI[m]+' '+y+'</strong>Report mensile</div></div>'
   +'<div class="kpis">'
   +'<div class="kpi"><div class="lbl">Incassi</div><div class="val" style="color:#27ae60">€'+income.toFixed(2)+'</div></div>'
   +'<div class="kpi"><div class="lbl">Uscite</div><div class="val" style="color:#e74c3c">€'+expense.toFixed(2)+'</div></div>'
-  +'<div class="kpi"><div class="lbl">Netto</div><div class="val" style="color:'+(income-expense>=0?'#ff6b00':'#e74c3c')+'">€'+(income-expense).toFixed(2)+'</div></div>'
+  +'<div class="kpi"><div class="lbl">Netto</div><div class="val" style="color:'+(income-expense>=0?'#E0A82E':'#e74c3c')+'">€'+(income-expense).toFixed(2)+'</div></div>'
   +'<div class="kpi"><div class="lbl">Sessioni</div><div class="val" style="color:#3498db">'+sessions.length+'</div></div>'
   +'<div class="kpi"><div class="lbl">Clienti attivi</div><div class="val">'+new Set(sessions.map(function(s){return s.clientId;})).size+'</div></div>'
   +'<div class="kpi"><div class="lbl">Transazioni</div><div class="val">'+transactions.length+'</div></div>'
@@ -3073,7 +3073,7 @@ function checkAutoBackup() {
   if(elapsed>WEEK){
     setTimeout(function(){
       var toast=document.createElement('div');
-      toast.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#ff6b00;color:#fff;border-radius:50px;padding:12px 20px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(255,107,0,.4);cursor:pointer;white-space:nowrap';
+      toast.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#E0A82E;color:#fff;border-radius:50px;padding:12px 20px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(224,168,46,.4);cursor:pointer;white-space:nowrap';
       toast.innerHTML='💾 Scarica un backup di sicurezza!';
       toast.onclick=function(){openBackupModal();toast.remove();};
       document.body.appendChild(toast);

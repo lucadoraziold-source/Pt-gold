@@ -595,7 +595,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 3.1</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 3.2</div>
     </div>
   </div>
 
@@ -2868,7 +2868,12 @@ function saveLead(){
   var l={id:editingLead||uid(),name:name,phone:document.getElementById('lead-phone').value.trim(),status:status,contactedDate:cDate,callbackDate:document.getElementById('lead-callback-date').value,freeLesson:document.getElementById('lead-free-lesson').value,freeLessonDate:document.getElementById('lead-free-date').value,notes:document.getElementById('lead-notes').value,createdAt:editingLead?(DB.leads.find(function(x){return x.id===editingLead;})||{}).createdAt:todayStr()};
   var leads=DB.leads,idx=leads.findIndex(function(x){return x.id===l.id;});
   if(idx>=0)leads[idx]=l;else leads.push(l);
-  DB.leads=leads;closeLeadModal();renderLeads();
+  DB.leads=leads;
+  // Auto-add to clients when status is gestito (no duplicates)
+  var addedToClients=false;
+  if(status==='gestito') addedToClients=promoteLeadToClient(l);
+  closeLeadModal();renderLeads();
+  if(addedToClients) alert('✅ '+l.name+' è stato aggiunto automaticamente ai Clienti.');
 }
 
 async function deleteCurrentLead(){
@@ -2877,12 +2882,45 @@ async function deleteCurrentLead(){
   closeLeadModal();renderLeads();
 }
 
+function promoteLeadToClient(lead){
+  if(!lead) return false;
+  // Avoid duplicates: match by normalized phone, otherwise by name (case-insensitive)
+  var leadPhoneDigits=(lead.phone||'').replace(/[^0-9]/g,'');
+  var clients=DB.clients;
+  var exists=clients.some(function(c){
+    var cPhone=(c.phone||'').replace(/[^0-9]/g,'');
+    if(leadPhoneDigits && cPhone && cPhone===leadPhoneDigits) return true;
+    if(!leadPhoneDigits && (c.name||'').trim().toLowerCase()===(lead.name||'').trim().toLowerCase()) return true;
+    return false;
+  });
+  if(exists) return false;
+  clients.push({
+    id:uid(),
+    name:lead.name||'',
+    phone:lead.phone||'',
+    email:'',
+    birthdate:'', cf:'', address:'', city:'', cap:'', prov:'',
+    notes:(lead.notes? 'Da lead: '+lead.notes : 'Aggiunto automaticamente dai contatti (lead gestito).'),
+    createdAt:todayStr()
+  });
+  DB.clients=clients;
+  return true;
+}
+
 function quickStatusLead(id,status){
   var leads=DB.leads,idx=leads.findIndex(function(l){return l.id===id;});
   if(idx<0)return;
   leads[idx].status=status;
   if(status==='contattato'&&!leads[idx].contactedDate)leads[idx].contactedDate=todayStr();
-  DB.leads=leads;renderLeads();
+  DB.leads=leads;
+  // When marked "gestito", auto-add to clients (no duplicates)
+  if(status==='gestito'){
+    var added=promoteLeadToClient(leads[idx]);
+    renderLeads();
+    if(added) alert('✅ '+leads[idx].name+' è stato aggiunto automaticamente ai Clienti.');
+    return;
+  }
+  renderLeads();
 }
 
 function checkLeadNotifs(){

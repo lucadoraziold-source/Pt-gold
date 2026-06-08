@@ -595,7 +595,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 2.7</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 2.8</div>
     </div>
   </div>
 
@@ -736,7 +736,30 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
           <div class="field" style="margin-bottom:0"><label>Prov.</label><input id="c-prov" placeholder="MI" maxlength="2" style="text-transform:uppercase"></div>
         </div>
       </div>
-      <div class="field"><label>Note</label><textarea id="c-notes" rows="2" placeholder="Patologie, obiettivi, preferenze..."></textarea></div>
+      <div class="section-box">
+        <div class="section-box-title">DATI PER CODICE FISCALE</div>
+        <div class="grid2">
+          <div class="field" style="margin-bottom:0"><label>Comune di nascita</label><input id="c-birthplace" placeholder="Es. Pescara"></div>
+          <div class="field" style="margin-bottom:0"><label>Sesso</label><select id="c-sex"><option value="">—</option><option value="M">Maschio</option><option value="F">Femmina</option></select></div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="calcCF()" style="margin-top:10px">🧮 Calcola codice fiscale</button>
+      </div>
+      <div class="section-box">
+        <div class="section-box-title">SALUTE</div>
+        <div class="row-item" style="padding:6px 0">
+          <span style="font-size:14px;font-weight:500">Patologie / farmaci / problematiche?</span>
+          <label style="position:relative;display:inline-block;width:50px;height:28px;flex-shrink:0">
+            <input type="checkbox" id="c-health-flag" onchange="toggleHealthNote(this.checked)" style="opacity:0;width:0;height:0;position:absolute">
+            <span id="c-health-track" style="position:absolute;inset:0;border-radius:50px;background:var(--border);transition:.2s"></span>
+            <span id="c-health-thumb" style="position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.3)"></span>
+          </label>
+        </div>
+        <div class="field" id="c-health-note-wrap" style="display:none;margin-top:10px;margin-bottom:0">
+          <label>Dettaglio (tipo di patologia, farmaci, note mediche)</label>
+          <textarea id="c-health-note" rows="2" placeholder="Es. ipertensione, assume betabloccanti; ernia L4-L5..."></textarea>
+        </div>
+      </div>
+      <div class="field"><label>Note generali</label><textarea id="c-notes" rows="2" placeholder="Obiettivi, preferenze..."></textarea></div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button class="btn btn-secondary" onclick="closeClientModal()">Annulla</button>
         <button class="btn btn-primary" onclick="saveClient()">💾 Salva cliente</button>
@@ -870,9 +893,12 @@ function renderDashboard(){
   const clients=DB.clients,sessions=DB.sessions,packages=DB.packages,transactions=DB.transactions;
   const thisMoIncome=transactions.filter(t=>{const d=new Date(t.date);return t.type==='entrata'&&d.getMonth()===m&&d.getFullYear()===y;}).reduce((s,t)=>s+ +t.amount,0);
   const thisMoS=sessions.filter(s=>{const d=new Date(s.date);return d.getMonth()===m&&d.getFullYear()===y;});
+  // Also count manual package deductions (sedute scalate a mano) in this month
+  const thisMoDeds=DB.deductions.filter(dd=>{if(dd.sessionId||!dd.date)return false;const d=new Date(dd.date+'T12:00:00');return d.getMonth()===m&&d.getFullYear()===y;});
+  const thisMoSessionsTotal=thisMoS.length+thisMoDeds.length;
   document.getElementById('dash-stats').innerHTML=[
     {icon:'👥',label:'Clienti',value:clients.length,color:'var(--accent)'},
-    {icon:'🏋️',label:'Sessioni mese',value:thisMoS.length,color:'var(--accent2)'},
+    {icon:'🏋️',label:'Sessioni mese',value:thisMoSessionsTotal,color:'var(--accent2)'},
     {icon:'📦',label:'Pacchetti attivi',value:packages.filter(p=>p.status==='attivo').length,color:'var(--info)'},
     {icon:'💶',label:'Incassi mese',value:fmtMoney(thisMoIncome),color:'var(--success)'},
   ].map(s=>`<div class="stat-card"><div class="stat-icon">${s.icon}</div><div class="stat-value" style="color:${s.color}">${s.value}</div><div class="stat-label">${s.label}</div></div>`).join('');
@@ -1060,7 +1086,7 @@ function renderClientDetail(id){
         ${loc?`<div class="row-item"><span class="text-muted" style="font-size:12px">📍 Indirizzo</span><a href="https://maps.google.com/?q=${encodeURIComponent(loc)}" target="_blank" style="font-size:13px;font-weight:600;color:var(--text);text-decoration:none;text-align:right;max-width:200px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">${loc} <span style="font-size:10px;background:rgba(52,152,219,.15);color:var(--info);padding:2px 8px;border-radius:50px">MAPPA</span></a></div>`:''}
         <div class="row-item"><span class="text-muted" style="font-size:12px">📅 Cliente dal</span><span style="font-size:14px;font-weight:600">${fmt(cl.createdAt)}</span></div>
         ${cl.notes?`<div style="margin-top:14px;padding:12px 14px;background:var(--surface2);border-radius:var(--radius-sm);border-left:3px solid var(--accent)"><div style="font-size:10px;color:var(--accent);font-weight:700;letter-spacing:1px;margin-bottom:6px">NOTE</div><div style="font-size:13px;line-height:1.6;color:var(--text)">${cl.notes}</div></div>`:''}
-      </div>
+        ${cl.healthFlag?`<div style="margin-top:12px;padding:12px 14px;background:rgba(255,59,59,.08);border-radius:var(--radius-sm);border-left:3px solid var(--danger)"><div style="font-size:10px;color:var(--danger);font-weight:700;letter-spacing:1px;margin-bottom:6px">⚠️ SALUTE — PATOLOGIE / FARMACI</div><div style="font-size:13px;line-height:1.6;color:var(--text)">${cl.healthNote||'Segnalato, nessun dettaglio inserito.'}</div></div>`:''}
       <div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
           <div class="stat-card"><div class="stat-icon">🏋️</div><div class="stat-value" style="color:var(--accent)">${(()=>{const ids=DB.packages.filter(p=>p.clientId===id).map(p=>p.id);const done=DB.sessions.filter(s=>s.clientId===id&&s.done).length;const manual=DB.deductions.filter(d=>ids.includes(d.packageId)&&!d.sessionId).length;return done+manual;})()}</div><div class="stat-label">Sedute fatte</div></div>
@@ -1116,8 +1142,16 @@ function openClientModal(id){
     document.getElementById('c-birth').value=c.birthdate||'';document.getElementById('c-cf').value=c.cf||'';
     document.getElementById('c-address').value=c.address||'';document.getElementById('c-city').value=c.city||'';document.getElementById('c-cap').value=c.cap||'';document.getElementById('c-prov').value=c.prov||'';
     document.getElementById('c-notes').value=c.notes||'';
+    document.getElementById('c-birthplace').value=c.birthplace||'';
+    document.getElementById('c-sex').value=c.sex||'';
+    document.getElementById('c-health-flag').checked=!!c.healthFlag;
+    document.getElementById('c-health-note').value=c.healthNote||'';
+    toggleHealthNote(!!c.healthFlag);
   } else {
-    ['c-name','c-phone','c-email','c-birth','c-cf','c-address','c-city','c-cap','c-prov','c-notes'].forEach(i=>document.getElementById(i).value='');
+    ['c-name','c-phone','c-email','c-birth','c-cf','c-address','c-city','c-cap','c-prov','c-notes','c-birthplace','c-health-note'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('c-sex').value='';
+    document.getElementById('c-health-flag').checked=false;
+    toggleHealthNote(false);
   }
   document.getElementById('client-modal').classList.remove('hidden');
 }
@@ -1126,12 +1160,98 @@ function saveClient(){
   const name=document.getElementById('c-name').value.trim();
   if(!name)return alert('Inserisci il nome del cliente');
   const existing=editingClient?DB.clients.find(x=>x.id===editingClient):null;
-  const c={id:editingClient||uid(),name,phone:document.getElementById('c-phone').value,email:document.getElementById('c-email').value,birthdate:document.getElementById('c-birth').value,cf:document.getElementById('c-cf').value.toUpperCase(),address:document.getElementById('c-address').value,city:document.getElementById('c-city').value,cap:document.getElementById('c-cap').value,prov:document.getElementById('c-prov').value.toUpperCase(),notes:document.getElementById('c-notes').value,photo:existing?existing.photo:undefined,createdAt:editingClient?existing?.createdAt:todayStr()};
+  const c={id:editingClient||uid(),name,phone:document.getElementById('c-phone').value,email:document.getElementById('c-email').value,birthdate:document.getElementById('c-birth').value,cf:document.getElementById('c-cf').value.toUpperCase(),address:document.getElementById('c-address').value,city:document.getElementById('c-city').value,cap:document.getElementById('c-cap').value,prov:document.getElementById('c-prov').value.toUpperCase(),notes:document.getElementById('c-notes').value,birthplace:document.getElementById('c-birthplace').value,sex:document.getElementById('c-sex').value,healthFlag:document.getElementById('c-health-flag').checked,healthNote:document.getElementById('c-health-note').value,photo:existing?existing.photo:undefined,createdAt:editingClient?existing?.createdAt:todayStr()};
   const clients=DB.clients,idx=clients.findIndex(x=>x.id===c.id);
   if(idx>=0)clients[idx]=c;else clients.push(c);
   DB.clients=clients;closeClientModal();renderPage(currentPage);
 }
 async function deleteClient(id){var _id=id;if(!await customConfirm('Eliminare questo cliente? Perderai tutte le sue informazioni.','🗑 ELIMINA CLIENTE'))return;DB.clients=DB.clients.filter(c=>c.id!==_id);backToClients();}
+
+function toggleHealthNote(on){
+  var wrap=document.getElementById('c-health-note-wrap');
+  var track=document.getElementById('c-health-track');
+  var thumb=document.getElementById('c-health-thumb');
+  if(wrap) wrap.style.display=on?'block':'none';
+  if(track) track.style.background=on?'var(--danger)':'var(--border)';
+  if(thumb) thumb.style.left=on?'25px':'3px';
+}
+
+// ─── CODICE FISCALE ───────────────────────────────────────────────────────────
+function calcCF(){
+  var name=(document.getElementById('c-name').value||'').trim();
+  var birth=document.getElementById('c-birth').value;
+  var sex=document.getElementById('c-sex').value;
+  var place=(document.getElementById('c-birthplace').value||'').trim();
+  if(!name||!birth||!sex||!place){
+    alert('Per calcolare il codice fiscale servono: nome e cognome, data di nascita, sesso e comune di nascita.');
+    return;
+  }
+  var parts=name.split(/\s+/);
+  if(parts.length<2){ alert('Inserisci sia il nome che il cognome.'); return; }
+  // assume last token = surname? In Italy usually "Nome Cognome". We take first as nome, rest as cognome.
+  var nome=parts[0];
+  var cognome=parts.slice(1).join('');
+
+  function consonants(s){return s.toUpperCase().replace(/[^A-Z]/g,'').split('').filter(function(ch){return 'BCDFGHJKLMNPQRSTVWXYZ'.indexOf(ch)>=0;}).join('');}
+  function vowels(s){return s.toUpperCase().replace(/[^A-Z]/g,'').split('').filter(function(ch){return 'AEIOU'.indexOf(ch)>=0;}).join('');}
+
+  function codeSurname(s){
+    var c=consonants(s),v=vowels(s);
+    var r=(c+v+'XXX').substring(0,3);
+    return r;
+  }
+  function codeName(s){
+    var c=consonants(s);
+    if(c.length>=4){ r=c[0]+c[2]+c[3]; return r; }
+    var v=vowels(s);
+    var r=(c+v+'XXX').substring(0,3);
+    return r;
+  }
+
+  var MESI_CF='ABCDEHLMPRST'; // Jan..Dec
+  var d=new Date(birth+'T12:00:00');
+  var yy=String(d.getFullYear()).substring(2);
+  var mm=MESI_CF[d.getMonth()];
+  var dd=d.getDate();
+  if(sex==='F') dd+=40;
+  var ddStr=String(dd).padStart(2,'0');
+
+  // Belfiore code: small built-in table for common towns; otherwise ask user.
+  var TOWNS={
+    'pescara':'G482','chieti':'C632','roma':'H501','milano':'F205','napoli':'F839',
+    'torino':'L219','bologna':'A944','firenze':'D612','genova':'D969','palermo':'G273',
+    'bari':'A662','catania':'C351','venezia':'L736','verona':'L781','padova':'G224',
+    'cagliari':'B354','messina':'F158','trieste':'L424','brescia':'B157','parma':'G337',
+    'modena':'F257','reggio calabria':'H224','reggio emilia':'H223','perugia':'G478',
+    'livorno':'E625','ravenna':'H199','rimini':'H294','salerno':'H703','ferrara':'D548',
+    'sassari':'I452','latina':'E472','monza':'F704','bergamo':'A794','pescara':'G482',
+    'citta santangelo':'C750','citta sant angelo':'C750','montesilvano':'F646',
+    'spoltore':'I922','francavilla al mare':'D763','vasto':'E372','lanciano':'E435',
+    'teramo':'L103','laquila':'A345','l aquila':'A345','sulmona':'I804','avezzano':'A515'
+  };
+  var key=place.toLowerCase().replace(/[^a-z\s]/g,'').replace(/\s+/g,' ').trim();
+  var belfiore=TOWNS[key];
+  if(!belfiore){
+    belfiore=prompt('Codice catastale (Belfiore) del comune "'+place+'"?\n\nNon ho questo comune in memoria. Inserisci il codice di 4 caratteri (es. G482 per Pescara). Lo trovi cercando "codice catastale '+place+'" online.');
+    if(!belfiore) return;
+    belfiore=belfiore.toUpperCase().trim();
+    if(!/^[A-Z]\d{3}$/.test(belfiore)){ alert('Codice catastale non valido. Deve essere una lettera seguita da 3 numeri (es. G482).'); return; }
+  }
+
+  var cf15=codeSurname(cognome)+codeName(nome)+yy+mm+ddStr+belfiore;
+  cf15=cf15.toUpperCase();
+
+  // check character (16th)
+  var oddMap={'0':1,'1':0,'2':5,'3':7,'4':9,'5':13,'6':15,'7':17,'8':19,'9':21,'A':1,'B':0,'C':5,'D':7,'E':9,'F':13,'G':15,'H':17,'I':19,'J':21,'K':2,'L':4,'M':18,'N':20,'O':11,'P':3,'Q':6,'R':8,'S':12,'T':14,'U':16,'V':10,'W':22,'X':25,'Y':24,'Z':23};
+  var evenMap={'0':0,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'A':0,'B':1,'C':2,'D':3,'E':4,'F':5,'G':6,'H':7,'I':8,'J':9,'K':10,'L':11,'M':12,'N':13,'O':14,'P':15,'Q':16,'R':17,'S':18,'T':19,'U':20,'V':21,'W':22,'X':23,'Y':24,'Z':25};
+  var sum=0;
+  for(var i=0;i<15;i++){ var ch=cf15[i]; sum += (i%2===0)?oddMap[ch]:evenMap[ch]; }
+  var check='ABCDEFGHIJKLMNOPQRSTUVWXYZ'[sum%26];
+  var cf=cf15+check;
+
+  document.getElementById('c-cf').value=cf;
+  alert('✅ Codice fiscale calcolato:\n\n'+cf+'\n\nVerifica sempre la correttezza, specialmente per nomi composti o omocodie.');
+}
 
 function setPkgFilter(f){
   pkgFilter=f;
@@ -1360,6 +1480,8 @@ function exportBackup() {
     payments: DB.payments,
     profile: JSON.parse(localStorage.getItem('pt_profile')||'{}'),
     waTemplates: JSON.parse(localStorage.getItem('pt_wa_templates')||'{}'),
+    gcalEmail: localStorage.getItem('pt_gcal_email')||'',
+    gcalEnabled: localStorage.getItem('pt_gcal_enabled')||'false',
     photos: DB.photos,
     leads: DB.leads,
   };
@@ -1394,6 +1516,8 @@ function importBackup(event) {
       if (data.photos) DB.photos = data.photos;
       if (data.profile) localStorage.setItem('pt_profile', JSON.stringify(data.profile));
       if (data.waTemplates) localStorage.setItem('pt_wa_templates', JSON.stringify(data.waTemplates));
+      if (data.gcalEmail) localStorage.setItem('pt_gcal_email', data.gcalEmail);
+      if (data.gcalEnabled) localStorage.setItem('pt_gcal_enabled', data.gcalEnabled);
       // Also check pt_leads key directly (legacy format)
       if (!data.leads && data.pt_leads) DB.leads = data.pt_leads;
       const st = document.getElementById('backup-status');
@@ -2063,6 +2187,8 @@ function importBackupFromSettings(event) {
       if (data.photos) DB.photos = data.photos;
       if (data.profile) localStorage.setItem('pt_profile', JSON.stringify(data.profile));
       if (data.waTemplates) localStorage.setItem('pt_wa_templates', JSON.stringify(data.waTemplates));
+      if (data.gcalEmail) localStorage.setItem('pt_gcal_email', data.gcalEmail);
+      if (data.gcalEnabled) localStorage.setItem('pt_gcal_enabled', data.gcalEnabled);
       if (!data.leads && data.pt_leads) DB.leads = data.pt_leads;
       const st = document.getElementById('settings-backup-status');
       st.style.display = 'block';
@@ -2649,11 +2775,9 @@ function renderLeads(){
   }
 
   function isPending(l){
-    // pending = needs action in the future
-    if(l.status==='gestito'||l.status==='non_gestito') return false;
-    if(l.status==='da_contattare'||l.status==='ricontattare') return true;
-    if(l.freeLesson==='programmata') return true;
-    return false;
+    // pending = NOT yet resolved. Any lead not marked gestito/non_gestito
+    // keeps appearing up to the current month, even if added in past months.
+    return l.status!=='gestito' && l.status!=='non_gestito';
   }
 
   list.forEach(function(l){

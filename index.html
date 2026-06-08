@@ -595,7 +595,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 2.8</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 3.0</div>
     </div>
   </div>
 
@@ -2895,22 +2895,79 @@ function checkLeadNotifs(){
 
 // ─── REPORT LEADS (PDF) ───────────────────────────────────────────────────────
 function leadsReport() {
-  var fMonth = parseInt(document.getElementById('leads-filter-month').value)||0;
-  var fYear  = parseInt(document.getElementById('leads-filter-year').value)||0;
+  // Show a month picker before generating. Default = current month.
+  var MESI=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  var now=new Date();
+  var curM=now.getMonth()+1, curY=now.getFullYear();
+  // build list of years present in leads + current year
+  var years={};
+  years[curY]=true;
+  DB.leads.forEach(function(l){ var d=new Date((l.createdAt||todayStr())+'T12:00:00'); years[d.getFullYear()]=true; });
+  var yearOpts=Object.keys(years).sort(function(a,b){return b-a;}).map(function(y){return '<option value="'+y+'"'+(+y===curY?' selected':'')+'>'+y+'</option>';}).join('');
+  var monthOpts='<option value="0">Tutti i mesi</option>'+MESI.map(function(m,i){return '<option value="'+(i+1)+'"'+((i+1)===curM?' selected':'')+'>'+m+'</option>';}).join('');
+
+  var ov=document.getElementById('leads-report-picker');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='leads-report-picker';
+    ov.className='overlay';
+    ov.innerHTML='<div class="modal" style="max-width:420px">'
+      +'<div class="modal-header"><span>📄 REPORT CONTATTI</span><button class="modal-close" onclick="document.getElementById(\'leads-report-picker\').classList.add(\'hidden\')">✕</button></div>'
+      +'<div class="modal-body">'
+      +'<p style="font-size:13px;color:var(--muted);margin:0 0 14px">Scegli il periodo del report.</p>'
+      +'<div class="grid2">'
+      +'<div class="field"><label>Mese</label><select id="report-month">'+monthOpts+'</select></div>'
+      +'<div class="field"><label>Anno</label><select id="report-year">'+yearOpts+'</select></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">'
+      +'<button class="btn btn-secondary" onclick="document.getElementById(\'leads-report-picker\').classList.add(\'hidden\')">Annulla</button>'
+      +'<button class="btn btn-primary" onclick="leadsReportGenerate()">📄 Genera report</button>'
+      +'</div>'
+      +'</div></div>';
+    document.body.appendChild(ov);
+  } else {
+    document.getElementById('report-month').innerHTML=monthOpts;
+    document.getElementById('report-year').innerHTML=yearOpts;
+    ov.classList.remove('hidden');
+  }
+  ov.classList.remove('hidden');
+}
+
+function leadsReportGenerate() {
+  var fMonth = parseInt(document.getElementById('report-month').value)||0;
+  var fYear  = parseInt(document.getElementById('report-year').value)||0;
+  var picker=document.getElementById('leads-report-picker');
+  if(picker) picker.classList.add('hidden');
   var MESI=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
 
   var all = DB.leads;
+  // Selected month key (if a specific month is chosen)
+  var selKey = (fMonth&&fYear) ? (fYear+'-'+String(fMonth).padStart(2,'0')) : null;
+  var nowD=new Date();
+  var nowKey=nowD.getFullYear()+'-'+String(nowD.getMonth()+1).padStart(2,'0');
+
+  function leadIsResolved(l){ return l.status==='gestito'||l.status==='non_gestito'; }
+
   var filtered = all.filter(function(l){
-    if(leadFilter!=='tutti' && l.status!==leadFilter) return false;
-    if(fMonth||fYear){
-      var d=new Date((l.createdAt||todayStr())+'T12:00:00');
-      if(fMonth && d.getMonth()+1!==fMonth) return false;
-      if(fYear  && d.getFullYear()!==fYear)  return false;
+    var d=new Date((l.createdAt||todayStr())+'T12:00:00');
+    var origKey=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if(!fMonth && !fYear) return true;            // tutti
+    if(fMonth && !fYear){                          // mese senza anno: confronta solo mese
+      if(d.getMonth()+1===fMonth) return true;
+      return false;
     }
-    return true;
+    if(fYear && !fMonth){                           // solo anno
+      return d.getFullYear()===fYear;
+    }
+    // mese + anno selezionati
+    if(origKey===selKey) return true;               // creato in quel mese
+    // carry-forward: se il contatto NON è ancora gestito/non gestito e il mese
+    // selezionato è SUCCESSIVO al mese di creazione, mostralo comunque
+    if(!leadIsResolved(l) && origKey < selKey) return true;
+    return false;
   });
 
-  if(!filtered.length){ alert('Nessun lead da includere nel report con i filtri attuali.'); return; }
+  if(!filtered.length){ alert('Nessun contatto in questo periodo.'); return; }
 
   // sort by name
   filtered.sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});

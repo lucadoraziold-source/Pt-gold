@@ -280,6 +280,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
     <div class="page-title">ACTIVE <span style="color:var(--accent)">PT</span></div>
     <div class="stats-grid" id="dash-stats"></div>
     <div id="dash-overdue" style="margin-bottom:16px"></div>
+    <div id="dash-today-done" style="margin-bottom:16px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
       <div class="card"><div class="bebas" style="font-size:16px;color:var(--muted);margin-bottom:14px;letter-spacing:2px" id="dash-today-title">OGGI</div><div id="dash-today-list"></div></div>
       <div class="card"><div class="bebas" style="font-size:16px;color:var(--muted);margin-bottom:14px;letter-spacing:2px">PROSSIMI</div><div id="dash-upcoming-list"></div></div>
@@ -595,7 +596,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 3.2</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 3.3</div>
     </div>
   </div>
 
@@ -908,6 +909,33 @@ function renderDashboard(){
   const upcoming=sessions.filter(s=>s.date>=todayStr()&&!s.done).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)).slice(0,5);
   document.getElementById('dash-upcoming-list').innerHTML=upcoming.length===0?'<div class="empty-state">Nessun appuntamento</div>':upcoming.map(s=>{const cl=clients.find(c=>c.id===s.clientId);return`<div class="row-item"><div><b>${cl?.name||'—'}</b><br><span class="text-muted" style="font-size:12px">${fmt(s.date)} · ${s.time}</span></div><span class="text-muted" style="font-size:12px">${s.duration}m</span></div>`;}).join('');
   renderOverduePayments();
+  renderTodayDone();
+}
+
+function renderTodayDone(){
+  var el=document.getElementById('dash-today-done');
+  if(!el) return;
+  var today=todayStr();
+  var items=[];
+  // Done calendar sessions today
+  DB.sessions.filter(function(s){return s.date===today && s.done;}).forEach(function(s){
+    var cl=DB.clients.find(function(c){return c.id===s.clientId;});
+    items.push({name:cl?cl.name:'—', info:(s.time?s.time+' · ':'')+'seduta', t:s.time||'00:00'});
+  });
+  // Manual package deductions today (sedute scalate a mano)
+  DB.deductions.filter(function(d){return !d.sessionId && d.date===today;}).forEach(function(d){
+    var pkg=DB.packages.find(function(p){return p.id===d.packageId;});
+    var cl=pkg?DB.clients.find(function(c){return c.id===pkg.clientId;}):null;
+    items.push({name:cl?cl.name:'—', info:(pkg?pkg.name:'pacchetto')+' · seduta scalata', t:'zz'});
+  });
+  if(!items.length){ el.innerHTML=''; return; }
+  // sort by time
+  items.sort(function(a,b){return a.t.localeCompare(b.t);});
+  el.innerHTML='<div class="card" style="border-left:3px solid var(--success);background:rgba(46,204,113,.06)">'+
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><span style="font-size:20px">✅</span>'+
+    '<div style="font-weight:700;font-size:14px">Sedute effettuate oggi ('+items.length+')</div></div>'+
+    items.map(function(o){return '<div class="row-item" style="font-size:13px"><div><b>'+o.name+'</b><br><span class="text-muted" style="font-size:11px">'+o.info+'</span></div><span style="color:var(--success);font-weight:700">✓</span></div>';}).join('')+
+    '</div>';
 }
 
 function renderOverduePayments(){
@@ -1336,6 +1364,7 @@ function confirmDeduct(){
   const note=document.getElementById('deduct-note').value;
   const deductions=DB.deductions;deductions.push({id:uid(),packageId:deductingPkgId,date,note,createdAt:todayStr()});
   DB.deductions=deductions;closeDeductModal();renderPackages();
+  if(document.getElementById('dash-today-done')) renderDashboard();
 }
 async function deleteDeduction(id){var _id=id;if(!await customConfirm('Rimuovere questa seduta dallo storico?','🗑 RIMUOVI SEDUTA','Sì, rimuovi','btn-danger'))return;DB.deductions=DB.deductions.filter(d=>d.id!==_id);renderPackages();}
 

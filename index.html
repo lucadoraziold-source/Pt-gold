@@ -379,6 +379,9 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
       <select id="acc-month" onchange="renderAccounting()" style="width:160px;border-radius:50px"></select>
       <select id="acc-year" onchange="renderAccounting()" style="width:100px;border-radius:50px"></select>
     </div>
+    <div class="mb16">
+      <button id="acc-tobill-filter" onclick="toggleBillFilter()" style="border:1.5px solid var(--info);background:transparent;color:var(--info);border-radius:50px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🧾 Mostra solo da fatturare</button>
+    </div>
     <div class="card"><div id="acc-list"></div></div>
   </div>
 
@@ -597,7 +600,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 3.5</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 3.6</div>
     </div>
   </div>
 
@@ -870,7 +873,7 @@ const MONTHS=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','
 const DAYS=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
 
 let currentPage='dashboard',calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calSelected=todayStr();
-let editingSession=null,editingClient=null,editingPackage=null,pkgFilter='tutti',txType='entrata',clientDetailId=null,deductingPkgId=null,accontoPkgId=null;
+let editingSession=null,editingClient=null,editingPackage=null,pkgFilter='tutti',txType='entrata',clientDetailId=null,deductingPkgId=null,accontoPkgId=null,billFilterOn=false;
 
 function navigate(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1449,10 +1452,11 @@ function renderAccounting(){
   ].map(s=>`<div class="stat-card"><div class="stat-icon">${s.icon}</div><div class="stat-value" style="color:${s.color}">${s.value}</div><div class="stat-label">${s.label}</div></div>`).join('');
 
   const el=document.getElementById('acc-list');
-  const sorted=[...transactions].sort((a,b)=>b.date.localeCompare(a.date));
+  let sorted=[...transactions].sort((a,b)=>b.date.localeCompare(a.date));
+  if(billFilterOn){ sorted=sorted.filter(t=>t.type==='entrata' && !t.invoiced); }
 
   if(sorted.length===0){
-    el.innerHTML='<div class="empty-state">Nessun movimento questo mese</div>';
+    el.innerHTML='<div class="empty-state">'+(billFilterOn?'Nessun incasso da fatturare 🎉':'Nessun movimento questo mese')+'</div>';
     return;
   }
 
@@ -1462,7 +1466,7 @@ function renderAccounting(){
     const isAuto=t.auto===true;
     const badge=isAuto?`<span style="background:rgba(224,168,46,.15);color:var(--accent);font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;margin-left:6px;letter-spacing:.5px">AUTO</span>`:'';
     const invBadge = t.type==='entrata'
-      ? `<button onclick="toggleInvoiced('${t.id}')" style="margin-left:6px;border:none;cursor:pointer;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;letter-spacing:.5px;${t.invoiced?'background:rgba(46,204,113,.15);color:var(--success)':'background:rgba(255,59,59,.12);color:var(--danger)'}">${t.invoiced?'✓ FATTURATO':'DA FATTURARE'}</button>`
+      ? `<button onclick="toggleInvoiced('${t.id}')" style="margin-left:6px;border:none;cursor:pointer;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;letter-spacing:.5px;${t.invoiced?'background:rgba(46,204,113,.15);color:var(--success)':'background:rgba(255,59,59,.12);color:var(--danger)'}">${t.invoiced?('✓ FATTURATO'+(t.invoiceNum?' n.'+t.invoiceNum:'')):'DA FATTURARE'}</button>`
       : '';
     return `<div class="row-item">
       <div style="width:42px;height:42px;border-radius:50%;background:${t.type==='entrata'?'rgba(46,204,113,.12)':'rgba(255,59,59,.12)'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${isAuto?'📦':t.type==='entrata'?'⬆️':'⬇️'}</div>
@@ -1475,11 +1479,38 @@ function renderAccounting(){
     </div>`;
   }).join('');
 }
+function toggleBillFilter(){
+  billFilterOn=!billFilterOn;
+  var btn=document.getElementById('acc-tobill-filter');
+  if(btn){
+    if(billFilterOn){
+      btn.style.background='var(--info)';btn.style.color='#fff';
+      btn.textContent='🧾 Mostra tutti i movimenti';
+    } else {
+      btn.style.background='transparent';btn.style.color='var(--info)';
+      btn.textContent='🧾 Mostra solo da fatturare';
+    }
+  }
+  renderAccounting();
+}
+
 function toggleInvoiced(id){
   const tx=DB.transactions;
   const idx=tx.findIndex(t=>t.id===id);
   if(idx<0)return;
-  tx[idx].invoiced=!tx[idx].invoiced;
+  if(!tx[idx].invoiced){
+    // marking as invoiced → optionally ask invoice number
+    var num=prompt('Segna come FATTURATO.\n\nNumero fattura (facoltativo, lascia vuoto se non vuoi indicarlo):', tx[idx].invoiceNum||'');
+    if(num===null) return; // cancelled
+    tx[idx].invoiced=true;
+    tx[idx].invoiceNum=num.trim();
+    tx[idx].invoiceDate=todayStr();
+  } else {
+    // un-marking
+    tx[idx].invoiced=false;
+    tx[idx].invoiceNum='';
+    tx[idx].invoiceDate='';
+  }
   DB.transactions=tx;
   renderCassa();
   if(document.getElementById('dash-overdue'))renderDashboard();

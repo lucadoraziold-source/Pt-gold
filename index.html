@@ -281,6 +281,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
     <div class="stats-grid" id="dash-stats"></div>
     <div id="dash-overdue" style="margin-bottom:16px"></div>
     <div id="dash-today-done" style="margin-bottom:16px"></div>
+    <div id="dash-tobill" style="margin-bottom:16px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
       <div class="card"><div class="bebas" style="font-size:16px;color:var(--muted);margin-bottom:14px;letter-spacing:2px" id="dash-today-title">OGGI</div><div id="dash-today-list"></div></div>
       <div class="card"><div class="bebas" style="font-size:16px;color:var(--muted);margin-bottom:14px;letter-spacing:2px">PROSSIMI</div><div id="dash-upcoming-list"></div></div>
@@ -596,7 +597,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 3.3</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 3.5</div>
     </div>
   </div>
 
@@ -910,6 +911,29 @@ function renderDashboard(){
   document.getElementById('dash-upcoming-list').innerHTML=upcoming.length===0?'<div class="empty-state">Nessun appuntamento</div>':upcoming.map(s=>{const cl=clients.find(c=>c.id===s.clientId);return`<div class="row-item"><div><b>${cl?.name||'—'}</b><br><span class="text-muted" style="font-size:12px">${fmt(s.date)} · ${s.time}</span></div><span class="text-muted" style="font-size:12px">${s.duration}m</span></div>`;}).join('');
   renderOverduePayments();
   renderTodayDone();
+  renderToBill();
+}
+
+function renderToBill(){
+  var el=document.getElementById('dash-tobill');
+  if(!el) return;
+  // income transactions not yet marked invoiced
+  var pending=DB.transactions.filter(function(t){return t.type==='entrata' && !t.invoiced;});
+  if(!pending.length){ el.innerHTML=''; return; }
+  pending.sort(function(a,b){return b.date.localeCompare(a.date);});
+  var total=pending.reduce(function(s,t){return s+ +t.amount;},0);
+  el.innerHTML='<div class="card" style="border-left:3px solid var(--info);background:rgba(52,152,219,.06)">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">'+
+    '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🧾</span>'+
+    '<div style="font-weight:700;font-size:14px">Da fatturare ('+pending.length+')</div></div>'+
+    '<div class="bebas" style="font-size:20px;color:var(--info)">'+fmtMoney(total)+'</div></div>'+
+    pending.slice(0,6).map(function(t){
+      var cl=DB.clients.find(function(c){return c.id===t.clientId;});
+      return '<div class="row-item" style="font-size:13px"><div><b>'+(cl?cl.name:t.description)+'</b><br><span class="text-muted" style="font-size:11px">'+fmt(t.date)+' · '+t.description+'</span></div>'+
+        '<button onclick="toggleInvoiced(\''+t.id+'\')" style="border:none;cursor:pointer;font-size:11px;font-weight:700;padding:5px 12px;border-radius:50px;background:rgba(46,204,113,.15);color:var(--success);flex-shrink:0">Segna fatturato</button></div>';
+    }).join('')+
+    (pending.length>6?'<div class="text-muted" style="font-size:12px;text-align:center;margin-top:8px">e altri '+(pending.length-6)+'... (vedi sezione Cassa)</div>':'')+
+    '</div>';
 }
 
 function renderTodayDone(){
@@ -1080,6 +1104,7 @@ function renderClients(){
   }).join('');
 }
 
+function backToClients(){clientDetailId=null;document.getElementById('client-detail').classList.add('hidden');document.getElementById('client-list-view').classList.remove('hidden');renderClients();}
 function showClientDetail(id){clientDetailId=id;renderClientDetail(id);}
 function renderClientDetail(id){
   const cl=DB.clients.find(c=>c.id===id);if(!cl)return;
@@ -1436,16 +1461,28 @@ function renderAccounting(){
     const col=t.type==='entrata'?'var(--success)':'var(--danger)';
     const isAuto=t.auto===true;
     const badge=isAuto?`<span style="background:rgba(224,168,46,.15);color:var(--accent);font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;margin-left:6px;letter-spacing:.5px">AUTO</span>`:'';
+    const invBadge = t.type==='entrata'
+      ? `<button onclick="toggleInvoiced('${t.id}')" style="margin-left:6px;border:none;cursor:pointer;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;letter-spacing:.5px;${t.invoiced?'background:rgba(46,204,113,.15);color:var(--success)':'background:rgba(255,59,59,.12);color:var(--danger)'}">${t.invoiced?'✓ FATTURATO':'DA FATTURARE'}</button>`
+      : '';
     return `<div class="row-item">
       <div style="width:42px;height:42px;border-radius:50%;background:${t.type==='entrata'?'rgba(46,204,113,.12)':'rgba(255,59,59,.12)'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${isAuto?'📦':t.type==='entrata'?'⬆️':'⬇️'}</div>
       <div style="flex:1;margin:0 14px;min-width:0">
-        <div style="font-weight:600;font-size:14px;display:flex;align-items:center;flex-wrap:wrap">${t.description}${badge}</div>
+        <div style="font-weight:600;font-size:14px;display:flex;align-items:center;flex-wrap:wrap">${t.description}${badge}${invBadge}</div>
         <div class="text-muted" style="font-size:12px;margin-top:2px">${fmt(t.date)} · ${t.method||'—'}${cl?' · '+cl.name:''}</div>
       </div>
       <div class="bebas" style="font-size:22px;color:${col};flex-shrink:0">${t.type==='entrata'?'+':'-'}${fmtMoney(t.amount)}</div>
       ${!isAuto?`<button class="btn btn-ghost" style="margin-left:8px;flex-shrink:0;color:var(--danger)" onclick="deleteTransaction('${t.id}')">✕</button>`:`<div style="width:38px"></div>`}
     </div>`;
   }).join('');
+}
+function toggleInvoiced(id){
+  const tx=DB.transactions;
+  const idx=tx.findIndex(t=>t.id===id);
+  if(idx<0)return;
+  tx[idx].invoiced=!tx[idx].invoiced;
+  DB.transactions=tx;
+  renderCassa();
+  if(document.getElementById('dash-overdue'))renderDashboard();
 }
 function setTxType(type){
   txType=type;

@@ -445,6 +445,14 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </select>
       </div>
       <div class="field"><label>Note</label><input id="acconto-note" placeholder="es. Acconto iniziale, saldo finale..."></div>
+      <div class="row-item" style="padding:10px 0;margin-bottom:12px">
+        <span style="font-size:14px;font-weight:500">🧾 Va fatturato?</span>
+        <label style="position:relative;display:inline-block;width:50px;height:28px;flex-shrink:0">
+          <input type="checkbox" id="acconto-tobill" onchange="updateBillToggle('acconto')" style="opacity:0;width:0;height:0;position:absolute">
+          <span id="acconto-tobill-track" style="position:absolute;inset:0;border-radius:50px;background:var(--border);transition:.2s"></span>
+          <span id="acconto-tobill-thumb" style="position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.3)"></span>
+        </label>
+      </div>
       <div id="acconto-preview" style="background:var(--surface2);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:20px;display:none">
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
           <span class="text-muted">Totale pacchetto</span>
@@ -600,7 +608,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 3.8</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 4.1</div>
     </div>
   </div>
 
@@ -909,9 +917,9 @@ function renderDashboard(){
   ].map(s=>`<div class="stat-card"><div class="stat-icon">${s.icon}</div><div class="stat-value" style="color:${s.color}">${s.value}</div><div class="stat-label">${s.label}</div></div>`).join('');
   const todaySessions=sessions.filter(s=>s.date===todayStr()).sort((a,b)=>a.time.localeCompare(b.time));
   document.getElementById('dash-today-title').textContent='OGGI — '+fmt(todayStr());
-  document.getElementById('dash-today-list').innerHTML=todaySessions.length===0?'<div class="empty-state">Nessuna sessione 🎉</div>':todaySessions.map(s=>{const cl=clients.find(c=>c.id===s.clientId);return`<div class="row-item"><div><b>${s.time}</b><span class="text-muted" style="margin-left:8px">${cl?.name||'—'}</span></div><span style="color:${s.done?'var(--success)':'var(--muted)'};font-size:13px">${s.done?'✓':s.duration+'m'}</span></div>`;}).join('');
+  document.getElementById('dash-today-list').innerHTML=todaySessions.length===0?'<div class="empty-state">Nessuna sessione 🎉</div>':todaySessions.map(s=>{const cl=clients.find(c=>c.id===s.clientId);return`<div class="row-item"><div><b>${s.time}</b><span class="text-muted" style="margin-left:8px">${cl?.name||s.clientName||'—'}</span></div><span style="color:${s.done?'var(--success)':'var(--muted)'};font-size:13px">${s.done?'✓':s.duration+'m'}</span></div>`;}).join('');
   const upcoming=sessions.filter(s=>s.date>=todayStr()&&!s.done).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)).slice(0,5);
-  document.getElementById('dash-upcoming-list').innerHTML=upcoming.length===0?'<div class="empty-state">Nessun appuntamento</div>':upcoming.map(s=>{const cl=clients.find(c=>c.id===s.clientId);return`<div class="row-item"><div><b>${cl?.name||'—'}</b><br><span class="text-muted" style="font-size:12px">${fmt(s.date)} · ${s.time}</span></div><span class="text-muted" style="font-size:12px">${s.duration}m</span></div>`;}).join('');
+  document.getElementById('dash-upcoming-list').innerHTML=upcoming.length===0?'<div class="empty-state">Nessun appuntamento</div>':upcoming.map(s=>{const cl=clients.find(c=>c.id===s.clientId);return`<div class="row-item"><div><b>${cl?.name||s.clientName||'—'}</b><br><span class="text-muted" style="font-size:12px">${fmt(s.date)} · ${s.time}</span></div><span class="text-muted" style="font-size:12px">${s.duration}m</span></div>`;}).join('');
   renderOverduePayments();
   renderTodayDone();
   renderToBill();
@@ -1006,7 +1014,7 @@ function selectCalDay(ds){calSelected=ds;document.getElementById('cal-selected-t
 function renderCalDaySessions(){
   const sessions=DB.sessions.filter(s=>s.date===calSelected).sort((a,b)=>a.time.localeCompare(b.time)),clients=DB.clients,el=document.getElementById('cal-day-sessions');
   if(sessions.length===0){el.innerHTML='<div class="card"><div class="empty-state">Nessuna sessione</div></div>';return;}
-  el.innerHTML=sessions.map(s=>{const cl=clients.find(c=>c.id===s.clientId);return`<div class="card" style="margin-bottom:10px;border-left:3px solid ${s.done?'var(--success)':'var(--accent)'}"><div onclick="openSessionModal('${s.id}')" style="cursor:pointer"><div class="flex-between"><div><div style="font-weight:600;font-size:15px">${cl?.name||'—'}</div><div class="text-muted" style="font-size:12px;margin-top:3px">🕐 ${s.time} · ${s.duration}min</div>${s.note?`<div class="text-muted" style="font-size:12px;margin-top:4px;font-style:italic">"${s.note}"</div>`:''}</div><span class="tag" style="background:${s.done?'rgba(46,204,113,.15)':'rgba(224,168,46,.12)'};color:${s.done?'var(--success)':'var(--accent)'}">${s.done?'✓ Fatto':'Prev.'}</span></div></div><div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--border);padding-top:10px"><button onclick="addToGoogleCalendar(${JSON.stringify(s).replace(/'/g,'\\u0027')})" style="flex:1;background:rgba(66,133,244,.1);border:1px solid #4285f4;color:#4285f4;border-radius:50px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer">📅 Google Cal</button><button onclick="exportToICS(${JSON.stringify(s).replace(/'/g,'\\u0027')})" style="flex:1;background:rgba(224,168,46,.1);border:1px solid var(--accent);color:var(--accent);border-radius:50px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer">📥 .ICS</button></div></div>`;}).join('');
+  el.innerHTML=sessions.map(s=>{const cl=clients.find(c=>c.id===s.clientId);return`<div class="card" style="margin-bottom:10px;border-left:3px solid ${s.done?'var(--success)':'var(--accent)'}"><div onclick="openSessionModal('${s.id}')" style="cursor:pointer"><div class="flex-between"><div><div style="font-weight:600;font-size:15px">${cl?.name||s.clientName||'—'}</div><div class="text-muted" style="font-size:12px;margin-top:3px">🕐 ${s.time} · ${s.duration}min</div>${s.note?`<div class="text-muted" style="font-size:12px;margin-top:4px;font-style:italic">"${s.note}"</div>`:''}</div><span class="tag" style="background:${s.done?'rgba(46,204,113,.15)':'rgba(224,168,46,.12)'};color:${s.done?'var(--success)':'var(--accent)'}">${s.done?'✓ Fatto':'Prev.'}</span></div></div><div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--border);padding-top:10px"><button onclick="addToGoogleCalendar(${JSON.stringify(s).replace(/'/g,'\\u0027')})" style="flex:1;background:rgba(66,133,244,.1);border:1px solid #4285f4;color:#4285f4;border-radius:50px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer">📅 Google Cal</button><button onclick="exportToICS(${JSON.stringify(s).replace(/'/g,'\\u0027')})" style="flex:1;background:rgba(224,168,46,.1);border:1px solid var(--accent);color:var(--accent);border-radius:50px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer">📥 .ICS</button></div></div>`;}).join('');
 }
 function calPrev(){if(calMonth===0){calMonth=11;calYear--;}else calMonth--;renderCalendar();}
 function calNext(){if(calMonth===11){calMonth=0;calYear++;}else calMonth++;renderCalendar();}
@@ -1337,7 +1345,7 @@ function renderPackages(){
             <span style="font-weight:700;font-size:17px">${p.name}</span>
             <span class="tag" style="background:${statusBg[p.status]};color:${statusColor[p.status]}">${p.status}</span>
           </div>
-          <div class="text-muted" style="font-size:13px">👤 ${cl?.name||'—'}</div>
+          <div class="text-muted" style="font-size:13px">👤 ${cl?.name||s.clientName||'—'}</div>
           <div class="text-muted" style="font-size:12px;margin-top:3px">📅 ${fmt(p.startDate)}${p.endDate?' → '+fmt(p.endDate):''}</div>
           ${lastDed?`<div class="text-muted" style="font-size:12px;margin-top:3px">🕐 Ultima: ${fmt(lastDed.date)}</div>`:''}
         </div>
@@ -1379,7 +1387,7 @@ function openDeductModal(pkgId){
   deductingPkgId=pkgId;
   const p=DB.packages.find(x=>x.id===pkgId),cl=DB.clients.find(c=>c.id===p.clientId);
   const used=DB.deductions.filter(d=>d.packageId===pkgId).length,remaining=(p.totalSessions||0)-used;
-  document.getElementById('deduct-pkg-info').innerHTML=`<div style="font-weight:700;font-size:15px;margin-bottom:4px">${p.name}</div><div class="text-muted" style="font-size:13px">👤 ${cl?.name||'—'}</div><div style="margin-top:12px;display:flex;gap:24px"><div><div class="bebas" style="font-size:26px;color:var(--accent)">${remaining}</div><div class="text-muted" style="font-size:11px;letter-spacing:1px">RIMASTE</div></div><div><div class="bebas" style="font-size:26px;color:var(--muted)">${used}</div><div class="text-muted" style="font-size:11px;letter-spacing:1px">GIÀ SCALATE</div></div></div>`;
+  document.getElementById('deduct-pkg-info').innerHTML=`<div style="font-weight:700;font-size:15px;margin-bottom:4px">${p.name}</div><div class="text-muted" style="font-size:13px">👤 ${cl?.name||s.clientName||'—'}</div><div style="margin-top:12px;display:flex;gap:24px"><div><div class="bebas" style="font-size:26px;color:var(--accent)">${remaining}</div><div class="text-muted" style="font-size:11px;letter-spacing:1px">RIMASTE</div></div><div><div class="bebas" style="font-size:26px;color:var(--muted)">${used}</div><div class="text-muted" style="font-size:11px;letter-spacing:1px">GIÀ SCALATE</div></div></div>`;
   document.getElementById('deduct-date').value=todayStr();
   document.getElementById('deduct-note').value='';
   document.getElementById('deduct-modal').classList.remove('hidden');
@@ -1472,21 +1480,10 @@ function renderAccounting(){
     var invLabel = invSt==='done' ? ('✓ Fatturato'+(t.invoiceNum?' n.'+t.invoiceNum:''))
                  : invSt==='skip' ? '⊘ Non da fatturare'
                  : '● Da fatturare';
-    // status badge (just shows current state, not a button)
+    // status badge — tappable to change state (Da fatturare → Fatturato → Non da fatturare)
     const invBadge = t.type==='entrata'
-      ? `<span style="margin-left:6px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;letter-spacing:.3px;${invStyle}">${invLabel}</span>`
+      ? `<button onclick="setInvoiceCycle('${t.id}')" style="margin-left:6px;border:none;cursor:pointer;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;letter-spacing:.3px;${invStyle}">${invLabel}</button>`
       : '';
-    // two action buttons for income, shown below
-    var invActions = '';
-    if(t.type==='entrata'){
-      var btnFatt = invSt==='done'
-        ? `<button onclick="setInvoice('${t.id}','todo')" style="flex:1;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:50px;padding:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">↩︎ Annulla fattura</button>`
-        : `<button onclick="setInvoice('${t.id}','done')" style="flex:1;border:1px solid var(--success);background:rgba(46,204,113,.1);color:var(--success);border-radius:50px;padding:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">✓ Fatturato</button>`;
-      var btnSkip = invSt==='skip'
-        ? `<button onclick="setInvoice('${t.id}','todo')" style="flex:1;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:50px;padding:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">↩︎ Rimetti da fatturare</button>`
-        : `<button onclick="setInvoice('${t.id}','skip')" style="flex:1;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:50px;padding:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">⊘ Non serve</button>`;
-      invActions = `<div style="display:flex;gap:8px;margin-top:10px">${btnFatt}${btnSkip}</div>`;
-    }
     return `<div style="padding:12px 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;align-items:center">
       <div style="width:42px;height:42px;border-radius:50%;background:${t.type==='entrata'?'rgba(46,204,113,.12)':'rgba(255,59,59,.12)'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${isAuto?'📦':t.type==='entrata'?'⬆️':'⬇️'}</div>
@@ -1497,7 +1494,6 @@ function renderAccounting(){
       <div class="bebas" style="font-size:22px;color:${col};flex-shrink:0">${t.type==='entrata'?'+':'-'}${fmtMoney(t.amount)}</div>
       ${!isAuto?`<button class="btn btn-ghost" style="margin-left:8px;flex-shrink:0;color:var(--danger)" onclick="deleteTransaction('${t.id}')">✕</button>`:`<div style="width:38px"></div>`}
       </div>
-      ${invActions}
     </div>`;
   }).join('');
 }
@@ -1516,6 +1512,16 @@ function toggleBillFilter(){
   renderAccounting();
 }
 
+function setInvoiceCycle(id){
+  const tx=DB.transactions;
+  const idx=tx.findIndex(t=>t.id===id);
+  if(idx<0)return;
+  var cur=tx[idx].invoiceStatus || (tx[idx].invoiced ? 'done' : 'todo');
+  // cycle: todo → done → skip → todo
+  var next = cur==='todo' ? 'done' : cur==='done' ? 'skip' : 'todo';
+  setInvoice(id, next);
+}
+
 function setInvoice(id, status){
   const tx=DB.transactions;
   const idx=tx.findIndex(t=>t.id===id);
@@ -1532,7 +1538,7 @@ function setInvoice(id, status){
   tx[idx].invoiceStatus=status;
   tx[idx].invoiced=(status==='done'); // keep old flag in sync
   DB.transactions=tx;
-  renderCassa();
+  renderAccounting();
   if(document.getElementById('dash-overdue'))renderDashboard();
 }
 
@@ -1687,8 +1693,19 @@ function openAccontoModal(pkgId) {
   document.getElementById('acconto-date').value = todayStr();
   document.getElementById('acconto-method').value = 'contanti';
   document.getElementById('acconto-note').value = '';
+  document.getElementById('acconto-tobill').checked = false;
+  updateBillToggle('acconto');
   document.getElementById('acconto-preview').style.display = 'none';
   document.getElementById('acconto-modal').classList.remove('hidden');
+}
+
+function updateBillToggle(prefix){
+  var cb=document.getElementById(prefix+'-tobill');
+  var track=document.getElementById(prefix+'-tobill-track');
+  var thumb=document.getElementById(prefix+'-tobill-thumb');
+  if(!cb)return;
+  if(cb.checked){ track.style.background='var(--success)'; thumb.style.left='25px'; }
+  else { track.style.background='var(--border)'; thumb.style.left='3px'; }
 }
 
 function updateAccontoPreview() {
@@ -1733,10 +1750,12 @@ function saveAcconto() {
   const txDesc = isSaldo
     ? `Saldo pacchetto — ${p?.name || ''}${cl ? ' (' + cl.name + ')' : ''}`
     : `Acconto pacchetto — ${p?.name || ''}${cl ? ' (' + cl.name + ')' : ''}${note ? ' · ' + note : ''}`;
-  const t = { id: uid(), type: 'entrata', description: txDesc, amount: +amount, date, method, clientId: p?.clientId || '', sourceId: pyId, sourceType: 'package_payment', auto: true };
+  const toBill = document.getElementById('acconto-tobill').checked;
+  const t = { id: uid(), type: 'entrata', description: txDesc, amount: +amount, date, method, clientId: p?.clientId || '', sourceId: pyId, sourceType: 'package_payment', auto: true, invoiceStatus: toBill ? 'todo' : 'skip', invoiced: false };
   const transactions = DB.transactions; transactions.push(t); DB.transactions = transactions;
   closeAccontoModal();
   renderPackages();
+  if(document.getElementById('dash-overdue'))renderDashboard();
 }
 
 async function deletePayment(id, pkgId) {
@@ -2644,7 +2663,7 @@ function renderStats() {
         const pct=Math.round((count/maxSess)*100);
         return `<div style="margin-bottom:12px">
           <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
-            <span style="font-weight:600">${cl?.name||'—'}</span>
+            <span style="font-weight:600">${cl?.name||s.clientName||'—'}</span>
             <span style="color:var(--accent);font-weight:700">${count} sedute</span>
           </div>
           <div style="height:6px;background:var(--border);border-radius:3px">
@@ -2715,7 +2734,7 @@ function globalSearch(query) {
     return (cl?.name||'').toLowerCase().includes(q) || (s.note||'').toLowerCase().includes(q);
   }).slice(0,5).forEach(s => {
     const cl = DB.clients.find(c=>c.id===s.clientId);
-    found.push({type:'session', icon:'🏋️', title:(cl?.name||'—')+' — '+fmt(s.date)+' '+s.time, sub:s.note||'', action:`calSelected='${s.date}';document.getElementById('global-search-overlay').classList.add('hidden');navigate('calendar');`});
+    found.push({type:'session', icon:'🏋️', title:(cl?.name||s.clientName||'—')+' — '+fmt(s.date)+' '+s.time, sub:s.note||'', action:`calSelected='${s.date}';document.getElementById('global-search-overlay').classList.add('hidden');navigate('calendar');`});
   });
   // Packages
   DB.packages.filter(p =>
@@ -2866,13 +2885,22 @@ function renderLeads(){
     return true;
   });
   list.sort(function(a,b){var o={ricontattare:0,da_contattare:1,contattato:2,gestito:3,non_gestito:4};return(o[a.status]||2)-(o[b.status]||2);});
+  // Stats scoped to the selected month/year (ignores the status chip filter,
+  // so the numbers always reflect the chosen period)
+  var scoped = all.filter(function(l){
+    if(!fMonth && !fYear) return true;
+    var d=new Date((l.createdAt||todayStr())+'T12:00:00');
+    if(fMonth && d.getMonth()+1!==fMonth) return false;
+    if(fYear  && d.getFullYear()!==fYear)  return false;
+    return true;
+  });
   var se=document.getElementById('leads-stats');
   if(se) se.innerHTML=[
-    {icon:'📋',label:'Totali',value:all.length,color:'var(--accent)'},
-    {icon:'📞',label:'Da contattare',value:all.filter(function(l){return l.status==='da_contattare';}).length,color:'var(--warning)'},
-    {icon:'🔄',label:'Ricontattare',value:all.filter(function(l){return l.status==='ricontattare';}).length,color:'var(--info)'},
-    {icon:'🏆',label:'Gestiti',value:all.filter(function(l){return l.status==='gestito';}).length,color:'var(--success)'},
-    {icon:'❌',label:'Non gestiti',value:all.filter(function(l){return l.status==='non_gestito';}).length,color:'var(--danger)'},
+    {icon:'📋',label:'Totali',value:scoped.length,color:'var(--accent)'},
+    {icon:'📞',label:'Da contattare',value:scoped.filter(function(l){return l.status==='da_contattare';}).length,color:'var(--warning)'},
+    {icon:'🔄',label:'Ricontattare',value:scoped.filter(function(l){return l.status==='ricontattare';}).length,color:'var(--info)'},
+    {icon:'🏆',label:'Gestiti',value:scoped.filter(function(l){return l.status==='gestito';}).length,color:'var(--success)'},
+    {icon:'❌',label:'Non gestiti',value:scoped.filter(function(l){return l.status==='non_gestito';}).length,color:'var(--danger)'},
   ].map(function(s){return'<div class="stat-card"><div class="stat-icon">'+s.icon+'</div><div class="stat-value" style="color:'+s.color+'">'+s.value+'</div><div class="stat-label">'+s.label+'</div></div>';}).join('');
   var el=document.getElementById('leads-list');
   if(!el)return;
@@ -2974,8 +3002,8 @@ function openLeadModal(id){
   editingLead=id||null;
   document.getElementById('lead-modal-title').textContent=id?'MODIFICA LEAD':'NUOVO LEAD';
   document.getElementById('lead-delete-btn').style.display=id?'block':'none';
-  if(id){var l=DB.leads.find(function(x){return x.id===id;});if(!l)return;document.getElementById('lead-name').value=l.name||'';document.getElementById('lead-phone').value=l.phone||'';document.getElementById('lead-status').value=l.status||'da_contattare';document.getElementById('lead-contacted-date').value=l.contactedDate||'';document.getElementById('lead-callback-date').value=l.callbackDate||'';document.getElementById('lead-notes').value=l.notes||'';}
-  else{['lead-name','lead-phone','lead-contacted-date','lead-callback-date','lead-notes'].forEach(function(i){document.getElementById(i).value='';});document.getElementById('lead-status').value='da_contattare';}
+  if(id){var l=DB.leads.find(function(x){return x.id===id;});if(!l)return;document.getElementById('lead-name').value=l.name||'';document.getElementById('lead-phone').value=l.phone||'';document.getElementById('lead-status').value=l.status||'da_contattare';document.getElementById('lead-contacted-date').value=l.contactedDate||'';document.getElementById('lead-callback-date').value=l.callbackDate||'';document.getElementById('lead-free-lesson').value=l.freeLesson||'';document.getElementById('lead-free-date').value=l.freeLessonDate||'';document.getElementById('lead-free-time').value=l.freeLessonTime||'';document.getElementById('lead-notes').value=l.notes||'';}
+  else{['lead-name','lead-phone','lead-contacted-date','lead-callback-date','lead-free-date','lead-free-time','lead-notes'].forEach(function(i){document.getElementById(i).value='';});document.getElementById('lead-status').value='da_contattare';document.getElementById('lead-free-lesson').value='';}
   document.getElementById('lead-modal').classList.remove('hidden');
 }
 
@@ -2987,15 +3015,51 @@ function saveLead(){
   var status=document.getElementById('lead-status').value;
   var cDate=document.getElementById('lead-contacted-date').value;
   if(status==='contattato'&&!cDate)cDate=todayStr();
-  var l={id:editingLead||uid(),name:name,phone:document.getElementById('lead-phone').value.trim(),status:status,contactedDate:cDate,callbackDate:document.getElementById('lead-callback-date').value,freeLesson:document.getElementById('lead-free-lesson').value,freeLessonDate:document.getElementById('lead-free-date').value,notes:document.getElementById('lead-notes').value,createdAt:editingLead?(DB.leads.find(function(x){return x.id===editingLead;})||{}).createdAt:todayStr()};
+  var l={id:editingLead||uid(),name:name,phone:document.getElementById('lead-phone').value.trim(),status:status,contactedDate:cDate,callbackDate:document.getElementById('lead-callback-date').value,freeLesson:document.getElementById('lead-free-lesson').value,freeLessonDate:document.getElementById('lead-free-date').value,freeLessonTime:document.getElementById('lead-free-time').value,notes:document.getElementById('lead-notes').value,createdAt:editingLead?(DB.leads.find(function(x){return x.id===editingLead;})||{}).createdAt:todayStr()};
   var leads=DB.leads,idx=leads.findIndex(function(x){return x.id===l.id;});
   if(idx>=0)leads[idx]=l;else leads.push(l);
   DB.leads=leads;
   // Auto-add to clients when status is gestito (no duplicates)
   var addedToClients=false;
   if(status==='gestito') addedToClients=promoteLeadToClient(l);
+  // Auto-create a calendar session for a scheduled free lesson (date + time)
+  var addedToAgenda=false;
+  if(l.freeLesson==='programmata' && l.freeLessonDate && l.freeLessonTime){
+    addedToAgenda=createFreeLessonSession(l);
+  }
   closeLeadModal();renderLeads();
-  if(addedToClients) alert('✅ '+l.name+' è stato aggiunto automaticamente ai Clienti.');
+  var msg='';
+  if(addedToClients) msg+='✅ '+l.name+' è stato aggiunto ai Clienti.\n';
+  if(addedToAgenda) msg+='📅 Lezione free aggiunta in Agenda il '+fmt(l.freeLessonDate)+' alle '+l.freeLessonTime+'.';
+  if(msg) alert(msg.trim());
+}
+
+function createFreeLessonSession(lead){
+  // Avoid duplicate: same lead free session already in calendar
+  var sessions=DB.sessions;
+  var dup=sessions.some(function(s){return s.leadFreeId===lead.id;});
+  if(dup){
+    // update existing one in case date/time changed
+    sessions=sessions.map(function(s){
+      if(s.leadFreeId===lead.id){ s.date=lead.freeLessonDate; s.time=lead.freeLessonTime; }
+      return s;
+    });
+    DB.sessions=sessions;
+    return false;
+  }
+  sessions.push({
+    id:uid(),
+    clientId:null,
+    clientName:lead.name+' (lezione free)',
+    date:lead.freeLessonDate,
+    time:lead.freeLessonTime,
+    duration:60,
+    done:false,
+    note:'Lezione di prova gratuita — lead Fitactive',
+    leadFreeId:lead.id
+  });
+  DB.sessions=sessions;
+  return true;
 }
 
 async function deleteCurrentLead(){
@@ -3514,6 +3578,10 @@ if("serviceWorker" in navigator){window.addEventListener("load",function(){navig
           <div class="field" style="margin-bottom:0"><label>Data lezione free</label>
             <input type="date" id="lead-free-date">
           </div>
+        </div>
+        <div class="field" id="lead-free-time-wrap" style="margin-top:12px;margin-bottom:0">
+          <label>Ora lezione free (per salvarla in agenda)</label>
+          <input type="time" id="lead-free-time">
         </div>
       </div>
       <div class="field"><label>Note</label><textarea id="lead-notes" rows="3" placeholder="Interessi, obiettivi, osservazioni..."></textarea></div>

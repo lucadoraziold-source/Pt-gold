@@ -608,7 +608,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 4.4</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 4.5</div>
     </div>
   </div>
 
@@ -1231,7 +1231,6 @@ function saveClient(){
 }
 async function createPack99FromLead(lead){
   if(!lead) return;
-  if(!await customConfirm('Creo il Pack 99 per '+lead.name+'?\n\nIl contatto verrà prima aggiunto ai Clienti, poi gli verrà creato il Pack 99 (1 lezione gratuita + 3 allenamenti + scheda, 99€).','⭐ PACK 99','Sì, crea','btn-primary')) return;
   // Promote to client (no duplicates). Find or create the client.
   promoteLeadToClient(lead);
   var leadPhone=(lead.phone||'').replace(/[^0-9]/g,'');
@@ -1241,11 +1240,12 @@ async function createPack99FromLead(lead){
     return (c.name||'').trim().toLowerCase()===(lead.name||'').trim().toLowerCase();
   });
   if(!client){ alert('Non sono riuscito a creare il cliente. Riprova.'); return; }
-  // mark lead as gestito too
+  // Now create the Pack 99 for this client (skip the extra confirm since the toggle already implies it)
+  var pkgId=await createPack99(client.id, true);
+  // Link the package + client to the lead so the card can show pay status
   var leads=DB.leads, idx=leads.findIndex(function(x){return x.id===lead.id;});
-  if(idx>=0){ leads[idx].status='gestito'; DB.leads=leads; }
-  // Now create the Pack 99 for this client (skip the extra confirm since we already asked)
-  createPack99(client.id, true);
+  if(idx>=0){ leads[idx].pack99Active=true; leads[idx].pack99PkgId=pkgId; leads[idx].pack99ClientId=client.id; DB.leads=leads; }
+  renderLeads();
 }
 
 async function createPack99(clientId, skipConfirm){
@@ -1284,6 +1284,7 @@ async function createPack99(clientId, skipConfirm){
   if(clientDetailId===clientId){ renderClientDetail(clientId); }
   renderLeads();
   alert('✅ Pack 99 creato per '+cl.name+'!\n\n📅 Lezione gratuita aggiunta in Agenda\n📦 Pacchetto da 3 sedute attivo\n🧾 Ricordati: 29€ andranno versati a Fitactive (lo segni quando vuoi dalla sezione Pacchetti).');
+  return pkg.id;
 }
 
 async function deleteClient(id){var _id=id;if(!await customConfirm('Eliminare questo cliente? Perderai tutte le sue informazioni.','🗑 ELIMINA CLIENTE'))return;DB.clients=DB.clients.filter(c=>c.id!==_id);backToClients();}
@@ -1785,10 +1786,12 @@ function openAccontoModal(pkgId) {
 }
 
 function updateBillToggle(prefix){
-  var cb=document.getElementById(prefix+'-tobill');
-  var track=document.getElementById(prefix+'-tobill-track');
-  var thumb=document.getElementById(prefix+'-tobill-thumb');
-  if(!cb)return;
+  // 'acconto' → acconto-tobill ; 'lead-pack99' → lead-pack99 (track/thumb suffixes)
+  var base = prefix==='lead-pack99' ? 'lead-pack99' : prefix+'-tobill';
+  var cb=document.getElementById(base);
+  var track=document.getElementById(base+'-track');
+  var thumb=document.getElementById(base+'-thumb');
+  if(!cb||!track||!thumb)return;
   if(cb.checked){ track.style.background='var(--success)'; thumb.style.left='25px'; }
   else { track.style.background='var(--border)'; thumb.style.left='3px'; }
 }
@@ -3078,13 +3081,26 @@ function renderLeads(){
     bng.style.cssText='flex:1;background:rgba(255,59,59,.1);border:1.5px solid var(--danger);color:var(--danger);border-radius:50px;padding:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';
     (function(id){bng.onclick=function(e){e.stopPropagation();quickStatusLead(id,'non_gestito');};})(l.id);
     row.appendChild(bng);
-    // Pulsante PACK 99 — crea cliente + pacchetto
-    var bp=document.createElement('button');
-    bp.textContent='⭐ Pack 99';
-    bp.style.cssText='flex:1;background:linear-gradient(135deg,#F4C95D,#E0A82E);border:none;color:#1a1a1a;border-radius:50px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;min-width:100%';
-    (function(lead){bp.onclick=function(e){e.stopPropagation();createPack99FromLead(lead);};})(l);
-    row.appendChild(bp);
-    card.appendChild(row);el.appendChild(card);
+    card.appendChild(row);
+    // Pack 99 status button — only if this lead has an active Pack 99
+    if(l.pack99Active && l.pack99PkgId){
+      var pkg=DB.packages.find(function(p){return p.id===l.pack99PkgId;});
+      if(pkg){
+        var paid=DB.payments.filter(function(py){return py.packageId===pkg.id;}).reduce(function(s,py){return s+ +py.amount;},0);
+        var fullyPaid = paid >= (pkg.price||99);
+        var fitDone = !!pkg.fitactivePaid;
+        var bg2, txt, label;
+        if(!fullyPaid){ bg2='linear-gradient(135deg,#F4C95D,#E0A82E)'; txt='#1a1a1a'; label='⭐ Pack 99 · da saldare ('+fmtMoney(paid)+'/'+fmtMoney(pkg.price||99)+')'; }
+        else if(fullyPaid && !fitDone){ bg2='linear-gradient(135deg,#F5A623,#E67E22)'; txt='#1a1a1a'; label='⭐ Pack 99 · salda 29€ a Fitactive'; }
+        else { bg2='linear-gradient(135deg,#2ecc71,#27ae60)'; txt='#fff'; label='✓ Pack 99 · completato'; }
+        var bp=document.createElement('button');
+        bp.textContent=label;
+        bp.style.cssText='width:100%;margin-top:10px;background:'+bg2+';border:none;color:'+txt+';border-radius:50px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit';
+        (function(pkgId){bp.onclick=function(e){e.stopPropagation();navigate('packages');};})(pkg.id);
+        card.appendChild(bp);
+      }
+    }
+    el.appendChild(card);
     }); // end group.items.forEach
   }); // end groupOrder.forEach
 }
@@ -3093,8 +3109,8 @@ function openLeadModal(id){
   editingLead=id||null;
   document.getElementById('lead-modal-title').textContent=id?'MODIFICA LEAD':'NUOVO LEAD';
   document.getElementById('lead-delete-btn').style.display=id?'block':'none';
-  if(id){var l=DB.leads.find(function(x){return x.id===id;});if(!l)return;document.getElementById('lead-name').value=l.name||'';document.getElementById('lead-phone').value=l.phone||'';document.getElementById('lead-status').value=l.status||'da_contattare';document.getElementById('lead-contacted-date').value=l.contactedDate||'';document.getElementById('lead-callback-date').value=l.callbackDate||'';document.getElementById('lead-free-lesson').value=l.freeLesson||'';document.getElementById('lead-free-date').value=l.freeLessonDate||'';document.getElementById('lead-free-time').value=l.freeLessonTime||'';document.getElementById('lead-notes').value=l.notes||'';}
-  else{['lead-name','lead-phone','lead-contacted-date','lead-callback-date','lead-free-date','lead-free-time','lead-notes'].forEach(function(i){document.getElementById(i).value='';});document.getElementById('lead-status').value='da_contattare';document.getElementById('lead-free-lesson').value='';}
+  if(id){var l=DB.leads.find(function(x){return x.id===id;});if(!l)return;document.getElementById('lead-name').value=l.name||'';document.getElementById('lead-phone').value=l.phone||'';document.getElementById('lead-status').value=l.status||'da_contattare';document.getElementById('lead-contacted-date').value=l.contactedDate||'';document.getElementById('lead-callback-date').value=l.callbackDate||'';document.getElementById('lead-free-lesson').value=l.freeLesson||'';document.getElementById('lead-free-date').value=l.freeLessonDate||'';document.getElementById('lead-free-time').value=l.freeLessonTime||'';document.getElementById('lead-notes').value=l.notes||'';document.getElementById('lead-pack99').checked=!!l.pack99Active;updateBillToggle('lead-pack99');}
+  else{['lead-name','lead-phone','lead-contacted-date','lead-callback-date','lead-free-date','lead-free-time','lead-notes'].forEach(function(i){document.getElementById(i).value='';});document.getElementById('lead-status').value='da_contattare';document.getElementById('lead-free-lesson').value='';document.getElementById('lead-pack99').checked=false;updateBillToggle('lead-pack99');}
   document.getElementById('lead-modal').classList.remove('hidden');
 }
 
@@ -3106,7 +3122,9 @@ function saveLead(){
   var status=document.getElementById('lead-status').value;
   var cDate=document.getElementById('lead-contacted-date').value;
   if(status==='contattato'&&!cDate)cDate=todayStr();
-  var l={id:editingLead||uid(),name:name,phone:document.getElementById('lead-phone').value.trim(),status:status,contactedDate:cDate,callbackDate:document.getElementById('lead-callback-date').value,freeLesson:document.getElementById('lead-free-lesson').value,freeLessonDate:document.getElementById('lead-free-date').value,freeLessonTime:document.getElementById('lead-free-time').value,notes:document.getElementById('lead-notes').value,createdAt:editingLead?(DB.leads.find(function(x){return x.id===editingLead;})||{}).createdAt:todayStr()};
+  var pack99On=document.getElementById('lead-pack99').checked;
+  var wasPackActive=editingLead?((DB.leads.find(function(x){return x.id===editingLead;})||{}).pack99Active||false):false;
+  var l={id:editingLead||uid(),name:name,phone:document.getElementById('lead-phone').value.trim(),status:status,contactedDate:cDate,callbackDate:document.getElementById('lead-callback-date').value,freeLesson:document.getElementById('lead-free-lesson').value,freeLessonDate:document.getElementById('lead-free-date').value,freeLessonTime:document.getElementById('lead-free-time').value,notes:document.getElementById('lead-notes').value,pack99Active:pack99On,createdAt:editingLead?(DB.leads.find(function(x){return x.id===editingLead;})||{}).createdAt:todayStr()};
   var leads=DB.leads,idx=leads.findIndex(function(x){return x.id===l.id;});
   if(idx>=0)leads[idx]=l;else leads.push(l);
   DB.leads=leads;
@@ -3119,6 +3137,11 @@ function saveLead(){
     addedToAgenda=createFreeLessonSession(l);
   }
   closeLeadModal();renderLeads();
+  // If Pack 99 was just turned ON, create client + package now
+  if(pack99On && !wasPackActive){
+    createPack99FromLead(l);
+    return;
+  }
   var msg='';
   if(addedToClients) msg+='✅ '+l.name+' è stato aggiunto ai Clienti.\n';
   if(addedToAgenda) msg+='📅 Lezione free aggiunta in Agenda il '+fmt(l.freeLessonDate)+' alle '+l.freeLessonTime+'.';
@@ -3676,6 +3699,17 @@ if("serviceWorker" in navigator){window.addEventListener("load",function(){navig
         </div>
       </div>
       <div class="field"><label>Note</label><textarea id="lead-notes" rows="3" placeholder="Interessi, obiettivi, osservazioni..."></textarea></div>
+      <div class="row-item" style="padding:12px;margin-bottom:16px;background:linear-gradient(135deg,rgba(244,201,93,.1),rgba(224,168,46,.06));border:1px solid var(--accent);border-radius:var(--radius-sm)">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--accent)">⭐ Attiva Pack 99</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Crea cliente + pacchetto (1 free + 3 sedute, 99€)</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:50px;height:28px;flex-shrink:0">
+          <input type="checkbox" id="lead-pack99" onchange="updateBillToggle('lead-pack99')" style="opacity:0;width:0;height:0;position:absolute">
+          <span id="lead-pack99-track" style="position:absolute;inset:0;border-radius:50px;background:var(--border);transition:.2s"></span>
+          <span id="lead-pack99-thumb" style="position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.3)"></span>
+        </label>
+      </div>
       <div style="display:flex;gap:10px;justify-content:space-between">
         <button class="btn btn-danger btn-sm" id="lead-delete-btn" onclick="deleteCurrentLead()" style="display:none">🗑 Elimina</button>
         <div style="display:flex;gap:10px;margin-left:auto">

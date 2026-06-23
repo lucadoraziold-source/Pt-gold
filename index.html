@@ -357,8 +357,8 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
       <button class="btn btn-primary" onclick="openPackageModal()">+ Nuovo pacchetto</button>
     </div>
     <div class="flex-gap chips-row mb24">
-      <button class="chip active" onclick="setPkgFilter('tutti')" id="pkg-f-tutti">Tutti</button>
-      <button class="chip" onclick="setPkgFilter('attivo')" id="pkg-f-attivo">✅ Attivi</button>
+      <button class="chip" onclick="setPkgFilter('tutti')" id="pkg-f-tutti">Tutti</button>
+      <button class="chip active" onclick="setPkgFilter('attivo')" id="pkg-f-attivo">✅ Attivi</button>
       <button class="chip" onclick="setPkgFilter('scaduto')" id="pkg-f-scaduto">❌ Scaduti</button>
       <button class="chip" onclick="setPkgFilter('sospeso')" id="pkg-f-sospeso">⏸ Sospesi</button>
     </div>
@@ -608,7 +608,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 4.1</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 4.3</div>
     </div>
   </div>
 
@@ -881,7 +881,7 @@ const MONTHS=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','
 const DAYS=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
 
 let currentPage='dashboard',calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calSelected=todayStr();
-let editingSession=null,editingClient=null,editingPackage=null,pkgFilter='tutti',txType='entrata',clientDetailId=null,deductingPkgId=null,accontoPkgId=null,billFilterOn=false;
+let editingSession=null,editingClient=null,editingPackage=null,pkgFilter='attivo',txType='entrata',clientDetailId=null,deductingPkgId=null,accontoPkgId=null,billFilterOn=false;
 
 function navigate(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -894,7 +894,7 @@ function renderPage(page){
   if(page==='dashboard')renderDashboard();
   else if(page==='calendar')renderCalendar();
   else if(page==='clients')renderClients();
-  else if(page==='packages')renderPackages();
+  else if(page==='packages'){setPkgFilter('attivo');}
   else if(page==='accounting')renderAccounting();
   else if(page==='stats')renderStats();
   else if(page==='leads')renderLeads();
@@ -1135,6 +1135,7 @@ function renderClientDetail(id){
       <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
         ${cl?.phone?`<button onclick="sendWhatsApp('${cl.phone}','${cl.name.split(' ')[0]}','','','reminder')" style="background:rgba(37,211,102,.1);border:1.5px solid #25D366;color:#25D366;border-radius:50px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">💬 WhatsApp</button>`:''}
         <button class="btn btn-secondary btn-sm" onclick="openClientModal('${id}')">✏️ Modifica</button>
+        <button onclick="createPack99('${id}')" style="background:linear-gradient(135deg,#F4C95D,#E0A82E);border:none;color:#1a1a1a;border-radius:50px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">⭐ Crea Pack 99</button>
         <button onclick="generateGDPR('${id}')" style="background:rgba(52,152,219,.12);border:1.5px solid var(--info);color:var(--info);border-radius:50px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">📋 GDPR</button>
         <button class="btn btn-danger btn-sm" onclick="deleteClient('${id}')">🗑</button>
       </div>
@@ -1229,6 +1230,41 @@ function saveClient(){
   if(idx>=0)clients[idx]=c;else clients.push(c);
   DB.clients=clients;closeClientModal();renderPage(currentPage);
 }
+async function createPack99(clientId){
+  var cl=DB.clients.find(c=>c.id===clientId);
+  if(!cl) return;
+  if(!await customConfirm('Creo il Pack 99 per '+cl.name+'?\n\n• 1 lezione gratuita + 3 allenamenti + scheda\n• Totale 99€ (29€ a Fitactive, 70€ a te)','⭐ PACK 99','Sì, crea','btn-primary')) return;
+
+  var today=todayStr();
+  // 1) Create the package: 3 sessions, 99€
+  var pkg={
+    id:uid(), clientId:clientId, name:'Pack 99',
+    totalSessions:3, price:99,
+    startDate:today, endDate:'',
+    status:'attivo',
+    notes:'Pack 99: 1 lezione gratuita + 3 allenamenti + scheda. Quota Fitactive 29€, quota PT 70€.',
+    isPack99:true, fitactiveQuota:29, fitactivePaid:false
+  };
+  DB.packages=[...DB.packages, pkg];
+
+  // 2) Free lesson session in agenda (does NOT scale the 3 sessions)
+  var sess={id:uid(),clientId:clientId,date:today,time:'',duration:60,done:false,note:'Lezione gratuita Pack 99 (non scala dalle 3 sedute)',freePack99:true};
+  DB.sessions=[...DB.sessions, sess];
+
+  // 3) Optional initial acconto
+  var acc=prompt('Acconto lasciato dal cliente ora (in €)?\n\nLascia vuoto o 0 se non lascia nulla. Il resto lo pagherà a te.','');
+  if(acc!==null && acc.trim()!=='' && +acc>0){
+    var amount=+acc;
+    DB.payments=[...DB.payments, {id:uid(),packageId:pkg.id,amount:amount,date:today,method:'contanti',note:'Acconto Pack 99'}];
+    // also as income transaction (not to be invoiced by default)
+    DB.transactions=[...DB.transactions, {id:uid(),type:'entrata',description:'Acconto Pack 99 — '+cl.name,amount:amount,date:today,method:'contanti',clientId:clientId,sourceId:pkg.id,sourceType:'package_payment',auto:true,invoiceStatus:'skip',invoiced:false}];
+  }
+
+  clientDetailId=clientId;
+  renderClientDetail(clientId);
+  alert('✅ Pack 99 creato per '+cl.name+'!\n\n📅 Lezione gratuita aggiunta in Agenda\n📦 Pacchetto da 3 sedute attivo\n🧾 Ricordati: 29€ andranno versati a Fitactive (lo segni quando vuoi dalla sezione Pacchetti).');
+}
+
 async function deleteClient(id){var _id=id;if(!await customConfirm('Eliminare questo cliente? Perderai tutte le sue informazioni.','🗑 ELIMINA CLIENTE'))return;DB.clients=DB.clients.filter(c=>c.id!==_id);backToClients();}
 
 function toggleHealthNote(on){
@@ -1323,8 +1359,25 @@ function setPkgFilter(f){
   renderPackages();
 }
 
+function pkgRemaining(p){
+  const used=DB.deductions.filter(d=>d.packageId===p.id).length;
+  return Math.max(0,(p.totalSessions||0)-used);
+}
+function pkgIsExpired(p){
+  if(!p.endDate) return false;
+  const end=new Date(p.endDate+'T23:59:59');
+  return end < new Date();
+}
+function pkgIsTrulyActive(p){
+  // truly active = marked attivo, still has sessions, and not past its end date
+  return p.status==='attivo' && pkgRemaining(p)>0 && !pkgIsExpired(p);
+}
 function renderPackages(){
-  const packages=pkgFilter==='tutti'?DB.packages:DB.packages.filter(p=>p.status===pkgFilter);
+  let packages;
+  if(pkgFilter==='tutti') packages=DB.packages;
+  else if(pkgFilter==='attivo') packages=DB.packages.filter(pkgIsTrulyActive);
+  else if(pkgFilter==='scaduto') packages=DB.packages.filter(p=>p.status==='scaduto' || (p.status==='attivo' && (pkgRemaining(p)<=0 || pkgIsExpired(p))));
+  else packages=DB.packages.filter(p=>p.status===pkgFilter);
   const clients=DB.clients,deductions=DB.deductions;
   const statusColor={attivo:'var(--success)',scaduto:'var(--danger)',sospeso:'var(--warning)'};
   const statusBg={attivo:'rgba(46,204,113,.12)',scaduto:'rgba(255,59,59,.12)',sospeso:'rgba(243,156,18,.12)'};
@@ -1345,9 +1398,10 @@ function renderPackages(){
             <span style="font-weight:700;font-size:17px">${p.name}</span>
             <span class="tag" style="background:${statusBg[p.status]};color:${statusColor[p.status]}">${p.status}</span>
           </div>
-          <div class="text-muted" style="font-size:13px">👤 ${cl?.name||s.clientName||'—'}</div>
+          <div class="text-muted" style="font-size:13px">👤 ${cl?.name||'—'}</div>
           <div class="text-muted" style="font-size:12px;margin-top:3px">📅 ${fmt(p.startDate)}${p.endDate?' → '+fmt(p.endDate):''}</div>
           ${lastDed?`<div class="text-muted" style="font-size:12px;margin-top:3px">🕐 Ultima: ${fmt(lastDed.date)}</div>`:''}
+          ${p.isPack99?`<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;${p.fitactivePaid?'background:rgba(46,204,113,.12);color:var(--success)':'background:rgba(243,156,18,.14);color:var(--warning)'}">${p.fitactivePaid?'✓ 29€ versati a Fitactive':'🧾 29€ da versare a Fitactive'} <button onclick="toggleFitactiveQuota('${p.id}')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">${p.fitactivePaid?'annulla':'segna versato'}</button></div>`:''}
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div class="bebas" style="font-size:28px;color:var(--accent);line-height:1">${fmtMoney(p.price)}</div>
@@ -1387,7 +1441,7 @@ function openDeductModal(pkgId){
   deductingPkgId=pkgId;
   const p=DB.packages.find(x=>x.id===pkgId),cl=DB.clients.find(c=>c.id===p.clientId);
   const used=DB.deductions.filter(d=>d.packageId===pkgId).length,remaining=(p.totalSessions||0)-used;
-  document.getElementById('deduct-pkg-info').innerHTML=`<div style="font-weight:700;font-size:15px;margin-bottom:4px">${p.name}</div><div class="text-muted" style="font-size:13px">👤 ${cl?.name||s.clientName||'—'}</div><div style="margin-top:12px;display:flex;gap:24px"><div><div class="bebas" style="font-size:26px;color:var(--accent)">${remaining}</div><div class="text-muted" style="font-size:11px;letter-spacing:1px">RIMASTE</div></div><div><div class="bebas" style="font-size:26px;color:var(--muted)">${used}</div><div class="text-muted" style="font-size:11px;letter-spacing:1px">GIÀ SCALATE</div></div></div>`;
+  document.getElementById('deduct-pkg-info').innerHTML=`<div style="font-weight:700;font-size:15px;margin-bottom:4px">${p.name}</div><div class="text-muted" style="font-size:13px">👤 ${cl?.name||'—'}</div><div style="margin-top:12px;display:flex;gap:24px"><div><div class="bebas" style="font-size:26px;color:var(--accent)">${remaining}</div><div class="text-muted" style="font-size:11px;letter-spacing:1px">RIMASTE</div></div><div><div class="bebas" style="font-size:26px;color:var(--muted)">${used}</div><div class="text-muted" style="font-size:11px;letter-spacing:1px">GIÀ SCALATE</div></div></div>`;
   document.getElementById('deduct-date').value=todayStr();
   document.getElementById('deduct-note').value='';
   document.getElementById('deduct-modal').classList.remove('hidden');
@@ -1418,6 +1472,16 @@ function openPackageModal(id){
   document.getElementById('package-modal').classList.remove('hidden');
 }
 function closePackageModal(){document.getElementById('package-modal').classList.add('hidden');editingPackage=null;}
+function toggleFitactiveQuota(pkgId){
+  var pkgs=DB.packages;
+  var idx=pkgs.findIndex(p=>p.id===pkgId);
+  if(idx<0)return;
+  pkgs[idx].fitactivePaid=!pkgs[idx].fitactivePaid;
+  pkgs[idx].fitactivePaidDate=pkgs[idx].fitactivePaid?todayStr():'';
+  DB.packages=pkgs;
+  renderPackages();
+}
+
 function savePackage(){
   const clientId=document.getElementById('p-client').value,name=document.getElementById('p-name').value.trim();
   if(!clientId||!name)return alert('Seleziona un cliente e inserisci il nome');
@@ -2663,7 +2727,7 @@ function renderStats() {
         const pct=Math.round((count/maxSess)*100);
         return `<div style="margin-bottom:12px">
           <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
-            <span style="font-weight:600">${cl?.name||s.clientName||'—'}</span>
+            <span style="font-weight:600">${cl?.name||'—'}</span>
             <span style="color:var(--accent);font-weight:700">${count} sedute</span>
           </div>
           <div style="height:6px;background:var(--border);border-radius:3px">

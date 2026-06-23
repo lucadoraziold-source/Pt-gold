@@ -608,7 +608,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 4.3</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 4.4</div>
     </div>
   </div>
 
@@ -1135,7 +1135,6 @@ function renderClientDetail(id){
       <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
         ${cl?.phone?`<button onclick="sendWhatsApp('${cl.phone}','${cl.name.split(' ')[0]}','','','reminder')" style="background:rgba(37,211,102,.1);border:1.5px solid #25D366;color:#25D366;border-radius:50px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">💬 WhatsApp</button>`:''}
         <button class="btn btn-secondary btn-sm" onclick="openClientModal('${id}')">✏️ Modifica</button>
-        <button onclick="createPack99('${id}')" style="background:linear-gradient(135deg,#F4C95D,#E0A82E);border:none;color:#1a1a1a;border-radius:50px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">⭐ Crea Pack 99</button>
         <button onclick="generateGDPR('${id}')" style="background:rgba(52,152,219,.12);border:1.5px solid var(--info);color:var(--info);border-radius:50px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">📋 GDPR</button>
         <button class="btn btn-danger btn-sm" onclick="deleteClient('${id}')">🗑</button>
       </div>
@@ -1230,10 +1229,31 @@ function saveClient(){
   if(idx>=0)clients[idx]=c;else clients.push(c);
   DB.clients=clients;closeClientModal();renderPage(currentPage);
 }
-async function createPack99(clientId){
+async function createPack99FromLead(lead){
+  if(!lead) return;
+  if(!await customConfirm('Creo il Pack 99 per '+lead.name+'?\n\nIl contatto verrà prima aggiunto ai Clienti, poi gli verrà creato il Pack 99 (1 lezione gratuita + 3 allenamenti + scheda, 99€).','⭐ PACK 99','Sì, crea','btn-primary')) return;
+  // Promote to client (no duplicates). Find or create the client.
+  promoteLeadToClient(lead);
+  var leadPhone=(lead.phone||'').replace(/[^0-9]/g,'');
+  var client=DB.clients.find(function(c){
+    var cPhone=(c.phone||'').replace(/[^0-9]/g,'');
+    if(leadPhone && cPhone && cPhone===leadPhone) return true;
+    return (c.name||'').trim().toLowerCase()===(lead.name||'').trim().toLowerCase();
+  });
+  if(!client){ alert('Non sono riuscito a creare il cliente. Riprova.'); return; }
+  // mark lead as gestito too
+  var leads=DB.leads, idx=leads.findIndex(function(x){return x.id===lead.id;});
+  if(idx>=0){ leads[idx].status='gestito'; DB.leads=leads; }
+  // Now create the Pack 99 for this client (skip the extra confirm since we already asked)
+  createPack99(client.id, true);
+}
+
+async function createPack99(clientId, skipConfirm){
   var cl=DB.clients.find(c=>c.id===clientId);
   if(!cl) return;
-  if(!await customConfirm('Creo il Pack 99 per '+cl.name+'?\n\n• 1 lezione gratuita + 3 allenamenti + scheda\n• Totale 99€ (29€ a Fitactive, 70€ a te)','⭐ PACK 99','Sì, crea','btn-primary')) return;
+  if(!skipConfirm){
+    if(!await customConfirm('Creo il Pack 99 per '+cl.name+'?\n\n• 1 lezione gratuita + 3 allenamenti + scheda\n• Totale 99€ (29€ a Fitactive, 70€ a te)','⭐ PACK 99','Sì, crea','btn-primary')) return;
+  }
 
   var today=todayStr();
   // 1) Create the package: 3 sessions, 99€
@@ -1260,8 +1280,9 @@ async function createPack99(clientId){
     DB.transactions=[...DB.transactions, {id:uid(),type:'entrata',description:'Acconto Pack 99 — '+cl.name,amount:amount,date:today,method:'contanti',clientId:clientId,sourceId:pkg.id,sourceType:'package_payment',auto:true,invoiceStatus:'skip',invoiced:false}];
   }
 
-  clientDetailId=clientId;
-  renderClientDetail(clientId);
+  // Refresh whichever view we're on
+  if(clientDetailId===clientId){ renderClientDetail(clientId); }
+  renderLeads();
   alert('✅ Pack 99 creato per '+cl.name+'!\n\n📅 Lezione gratuita aggiunta in Agenda\n📦 Pacchetto da 3 sedute attivo\n🧾 Ricordati: 29€ andranno versati a Fitactive (lo segni quando vuoi dalla sezione Pacchetti).');
 }
 
@@ -3057,6 +3078,12 @@ function renderLeads(){
     bng.style.cssText='flex:1;background:rgba(255,59,59,.1);border:1.5px solid var(--danger);color:var(--danger);border-radius:50px;padding:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';
     (function(id){bng.onclick=function(e){e.stopPropagation();quickStatusLead(id,'non_gestito');};})(l.id);
     row.appendChild(bng);
+    // Pulsante PACK 99 — crea cliente + pacchetto
+    var bp=document.createElement('button');
+    bp.textContent='⭐ Pack 99';
+    bp.style.cssText='flex:1;background:linear-gradient(135deg,#F4C95D,#E0A82E);border:none;color:#1a1a1a;border-radius:50px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;min-width:100%';
+    (function(lead){bp.onclick=function(e){e.stopPropagation();createPack99FromLead(lead);};})(l);
+    row.appendChild(bp);
     card.appendChild(row);el.appendChild(card);
     }); // end group.items.forEach
   }); // end groupOrder.forEach

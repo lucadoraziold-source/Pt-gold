@@ -608,7 +608,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 4.5</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 4.6</div>
     </div>
   </div>
 
@@ -1262,28 +1262,38 @@ async function createPack99(clientId, skipConfirm){
     totalSessions:3, price:99,
     startDate:today, endDate:'',
     status:'attivo',
-    notes:'Pack 99: 1 lezione gratuita + 3 allenamenti + scheda. Quota Fitactive 29€, quota PT 70€.',
-    isPack99:true, fitactiveQuota:29, fitactivePaid:false
+    notes:'Pack 99: 1 lezione gratuita + 3 allenamenti + scheda. Quota Fitactive 30€, quota PT 69€. L\'acconto iniziale del cliente va a Fitactive.',
+    isPack99:true, fitactiveQuota:30, fitactivePaid:false, pack99Acconto:0
   };
-  DB.packages=[...DB.packages, pkg];
 
   // 2) Free lesson session in agenda (does NOT scale the 3 sessions)
   var sess={id:uid(),clientId:clientId,date:today,time:'',duration:60,done:false,note:'Lezione gratuita Pack 99 (non scala dalle 3 sedute)',freePack99:true};
   DB.sessions=[...DB.sessions, sess];
 
-  // 3) Optional initial acconto
-  var acc=prompt('Acconto lasciato dal cliente ora (in €)?\n\nLascia vuoto o 0 se non lascia nulla. Il resto lo pagherà a te.','');
+  // 3) Initial acconto — goes to FITACTIVE (not the PT), counts against the 30€ quota
+  var acc=prompt('Acconto iniziale lasciato dal cliente (in €)?\n\nQuesto acconto va a Fitactive e si scala dai 30€ della quota.\nLascia vuoto o 0 se non lascia nulla.','');
+  var amount=0;
   if(acc!==null && acc.trim()!=='' && +acc>0){
-    var amount=+acc;
-    DB.payments=[...DB.payments, {id:uid(),packageId:pkg.id,amount:amount,date:today,method:'contanti',note:'Acconto Pack 99'}];
-    // also as income transaction (not to be invoiced by default)
-    DB.transactions=[...DB.transactions, {id:uid(),type:'entrata',description:'Acconto Pack 99 — '+cl.name,amount:amount,date:today,method:'contanti',clientId:clientId,sourceId:pkg.id,sourceType:'package_payment',auto:true,invoiceStatus:'skip',invoiced:false}];
+    amount=+acc;
+    pkg.pack99Acconto=amount;
+    // record the payment on the package so the client's "paid" total is correct
+    DB.payments=[...DB.payments, {id:uid(),packageId:pkg.id,amount:amount,date:today,method:'contanti',note:'Acconto Pack 99 (versato a Fitactive)'}];
+    // NOTE: no income transaction for the PT — this money goes to Fitactive, not to you
   }
+  DB.packages=[...DB.packages, pkg];
+
+  // Compute what's still owed to Fitactive
+  var quota=30;
+  var residuo=quota-amount; // >0 = you still owe Fitactive; <0 = Fitactive owes you
+  var msgFit;
+  if(residuo>0) msgFit='🧾 Restano '+fmtMoney(residuo)+' da versare a Fitactive (acconto '+fmtMoney(amount)+' già dato dal cliente).';
+  else if(residuo===0) msgFit='✓ Quota Fitactive già coperta dall\'acconto.';
+  else msgFit='🔵 Fitactive ti deve '+fmtMoney(-residuo)+' (acconto superiore alla quota).';
 
   // Refresh whichever view we're on
   if(clientDetailId===clientId){ renderClientDetail(clientId); }
   renderLeads();
-  alert('✅ Pack 99 creato per '+cl.name+'!\n\n📅 Lezione gratuita aggiunta in Agenda\n📦 Pacchetto da 3 sedute attivo\n🧾 Ricordati: 29€ andranno versati a Fitactive (lo segni quando vuoi dalla sezione Pacchetti).');
+  alert('✅ Pack 99 creato per '+cl.name+'!\n\n📅 Lezione gratuita aggiunta in Agenda\n📦 Pacchetto da 3 sedute attivo\n'+msgFit);
   return pkg.id;
 }
 
@@ -1423,7 +1433,15 @@ function renderPackages(){
           <div class="text-muted" style="font-size:13px">👤 ${cl?.name||'—'}</div>
           <div class="text-muted" style="font-size:12px;margin-top:3px">📅 ${fmt(p.startDate)}${p.endDate?' → '+fmt(p.endDate):''}</div>
           ${lastDed?`<div class="text-muted" style="font-size:12px;margin-top:3px">🕐 Ultima: ${fmt(lastDed.date)}</div>`:''}
-          ${p.isPack99?`<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;${p.fitactivePaid?'background:rgba(46,204,113,.12);color:var(--success)':'background:rgba(243,156,18,.14);color:var(--warning)'}">${p.fitactivePaid?'✓ 29€ versati a Fitactive':'🧾 29€ da versare a Fitactive'} <button onclick="toggleFitactiveQuota('${p.id}')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">${p.fitactivePaid?'annulla':'segna versato'}</button></div>`:''}
+          ${p.isPack99?(function(){
+            var quota=p.fitactiveQuota||30;
+            var acc=p.pack99Acconto||0;
+            var residuo=quota-acc;
+            if(p.fitactivePaid) return '<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(46,204,113,.12);color:var(--success)">✓ Quota Fitactive saldata <button onclick="toggleFitactiveQuota(\''+p.id+'\')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">annulla</button></div>';
+            if(residuo>0) return '<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(243,156,18,.14);color:var(--warning)">🧾 '+fmtMoney(residuo)+' da versare a Fitactive'+(acc>0?' (acconto '+fmtMoney(acc)+' già dato)':'')+' <button onclick="toggleFitactiveQuota(\''+p.id+'\')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">segna versato</button></div>';
+            if(residuo===0) return '<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(46,204,113,.12);color:var(--success)">✓ Quota Fitactive coperta dall\'acconto <button onclick="toggleFitactiveQuota(\''+p.id+'\')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">segna saldato</button></div>';
+            return '<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(52,152,219,.14);color:var(--info)">🔵 Fitactive ti deve '+fmtMoney(-residuo)+' (acconto superiore alla quota) <button onclick="toggleFitactiveQuota(\''+p.id+'\')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">segna saldato</button></div>';
+          })():''}
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div class="bebas" style="font-size:28px;color:var(--accent);line-height:1">${fmtMoney(p.price)}</div>
@@ -3091,7 +3109,11 @@ function renderLeads(){
         var fitDone = !!pkg.fitactivePaid;
         var bg2, txt, label;
         if(!fullyPaid){ bg2='linear-gradient(135deg,#F4C95D,#E0A82E)'; txt='#1a1a1a'; label='⭐ Pack 99 · da saldare ('+fmtMoney(paid)+'/'+fmtMoney(pkg.price||99)+')'; }
-        else if(fullyPaid && !fitDone){ bg2='linear-gradient(135deg,#F5A623,#E67E22)'; txt='#1a1a1a'; label='⭐ Pack 99 · salda 29€ a Fitactive'; }
+        else if(fullyPaid && !fitDone){
+          var resid=(pkg.fitactiveQuota||30)-(pkg.pack99Acconto||0);
+          if(resid>0){ bg2='linear-gradient(135deg,#F5A623,#E67E22)'; txt='#1a1a1a'; label='⭐ Pack 99 · versa '+fmtMoney(resid)+' a Fitactive'; }
+          else { bg2='linear-gradient(135deg,#2ecc71,#27ae60)'; txt='#fff'; label='✓ Pack 99 · completato'; }
+        }
         else { bg2='linear-gradient(135deg,#2ecc71,#27ae60)'; txt='#fff'; label='✓ Pack 99 · completato'; }
         var bp=document.createElement('button');
         bp.textContent=label;

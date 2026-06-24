@@ -608,7 +608,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 4.6</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 4.7</div>
     </div>
   </div>
 
@@ -1285,10 +1285,12 @@ async function createPack99(clientId, skipConfirm){
   // Compute what's still owed to Fitactive
   var quota=30;
   var residuo=quota-amount; // >0 = you still owe Fitactive; <0 = Fitactive owes you
+  // If the acconto already covers (or exceeds) the quota, mark Fitactive as settled automatically
+  if(residuo<=0){ pkg.fitactivePaid=true; }
   var msgFit;
-  if(residuo>0) msgFit='🧾 Restano '+fmtMoney(residuo)+' da versare a Fitactive (acconto '+fmtMoney(amount)+' già dato dal cliente).';
-  else if(residuo===0) msgFit='✓ Quota Fitactive già coperta dall\'acconto.';
-  else msgFit='🔵 Fitactive ti deve '+fmtMoney(-residuo)+' (acconto superiore alla quota).';
+  if(residuo>0) msgFit='🧾 Rimanente da versare a Fitactive: '+fmtMoney(residuo)+(amount>0?' (acconto '+fmtMoney(amount)+' già dato)':'');
+  else if(residuo===0) msgFit='✓ Quota Fitactive saldata con l\'acconto.';
+  else msgFit='✓ Quota Fitactive saldata. Fitactive ti deve '+fmtMoney(-residuo)+' (acconto superiore alla quota).';
 
   // Refresh whichever view we're on
   if(clientDetailId===clientId){ renderClientDetail(clientId); }
@@ -1437,10 +1439,11 @@ function renderPackages(){
             var quota=p.fitactiveQuota||30;
             var acc=p.pack99Acconto||0;
             var residuo=quota-acc;
-            if(p.fitactivePaid) return '<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(46,204,113,.12);color:var(--success)">✓ Quota Fitactive saldata <button onclick="toggleFitactiveQuota(\''+p.id+'\')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">annulla</button></div>';
-            if(residuo>0) return '<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(243,156,18,.14);color:var(--warning)">🧾 '+fmtMoney(residuo)+' da versare a Fitactive'+(acc>0?' (acconto '+fmtMoney(acc)+' già dato)':'')+' <button onclick="toggleFitactiveQuota(\''+p.id+'\')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">segna versato</button></div>';
-            if(residuo===0) return '<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(46,204,113,.12);color:var(--success)">✓ Quota Fitactive coperta dall\'acconto <button onclick="toggleFitactiveQuota(\''+p.id+'\')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">segna saldato</button></div>';
-            return '<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(52,152,219,.14);color:var(--info)">🔵 Fitactive ti deve '+fmtMoney(-residuo)+' (acconto superiore alla quota) <button onclick="toggleFitactiveQuota(\''+p.id+'\')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">segna saldato</button></div>';
+            if(p.fitactivePaid) {
+              var extra = residuo<0 ? ' (Fitactive ti deve '+fmtMoney(-residuo)+')' : '';
+              return '<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(46,204,113,.12);color:var(--success)">✓ Fitactive saldato'+extra+' <button onclick="toggleFitactiveQuota(\''+p.id+'\')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">annulla</button></div>';
+            }
+            return '<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(243,156,18,.14);color:var(--warning)">🧾 Rimanente a Fitactive: '+fmtMoney(residuo)+(acc>0?' (acconto '+fmtMoney(acc)+' dato)':'')+' <button onclick="toggleFitactiveQuota(\''+p.id+'\')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">segna versato</button></div>';
           })():''}
         </div>
         <div style="text-align:right;flex-shrink:0">

@@ -453,6 +453,15 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
           <span id="acconto-tobill-thumb" style="position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.3)"></span>
         </label>
       </div>
+      <div id="acconto-fitactive-wrap" style="margin-bottom:14px;display:none">
+        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;color:var(--accent)">⭐ Pack 99 — a chi va questo importo?</label>
+        <div style="display:flex;gap:10px">
+          <button type="button" id="acconto-dest-me" onclick="setAccontoDest('me')" style="flex:1;border:2px solid var(--accent);background:var(--accent);color:#1a1a1a;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💰 A me</button>
+          <button type="button" id="acconto-dest-fit" onclick="setAccontoDest('fit')" style="flex:1;border:2px solid var(--border);background:transparent;color:var(--text);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">⭐ A Fitactive</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px" id="acconto-dest-hint">L'importo conta come tuo incasso.</div>
+      </div>
+      <input type="checkbox" id="acconto-fitactive" style="display:none">
       <div id="acconto-preview" style="background:var(--surface2);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:20px;display:none">
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
           <span class="text-muted">Totale pacchetto</span>
@@ -608,7 +617,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 4.8</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 5.0</div>
     </div>
   </div>
 
@@ -1288,7 +1297,7 @@ async function createPack99(clientId, skipConfirm){
     DB.packages=pkgs;
   }
   if(amount>0){
-    DB.payments=[...DB.payments, {id:uid(),packageId:pkg.id,amount:amount,date:today,method:'contanti',note:'Acconto Pack 99 (versato a Fitactive)'}];
+    DB.payments=[...DB.payments, {id:uid(),packageId:pkg.id,amount:amount,date:today,method:'contanti',note:'Acconto Pack 99 (versato a Fitactive)',toFitactive:true}];
   }
 
   var residuo=30-amount;
@@ -1807,8 +1816,38 @@ function openAccontoModal(pkgId) {
   document.getElementById('acconto-note').value = '';
   document.getElementById('acconto-tobill').checked = false;
   updateBillToggle('acconto');
+  // Pack 99: show the "a chi va" choice (default = A me)
+  var fitWrap=document.getElementById('acconto-fitactive-wrap');
+  if(p.isPack99){
+    fitWrap.style.display='block';
+    setAccontoDest('me');
+  } else {
+    fitWrap.style.display='none';
+    document.getElementById('acconto-fitactive').checked=false;
+  }
   document.getElementById('acconto-preview').style.display = 'none';
   document.getElementById('acconto-modal').classList.remove('hidden');
+}
+
+function setAccontoDest(dest){
+  var cb=document.getElementById('acconto-fitactive');
+  var btnMe=document.getElementById('acconto-dest-me');
+  var btnFit=document.getElementById('acconto-dest-fit');
+  var hint=document.getElementById('acconto-dest-hint');
+  var billRow=document.getElementById('acconto-tobill').closest('.row-item');
+  if(dest==='fit'){
+    cb.checked=true;
+    btnFit.style.background='var(--accent)';btnFit.style.color='#1a1a1a';btnFit.style.borderColor='var(--accent)';
+    btnMe.style.background='transparent';btnMe.style.color='var(--text)';btnMe.style.borderColor='var(--border)';
+    if(hint) hint.textContent='Va a Fitactive: non conta come tuo incasso, niente ricevuta. Si scala dalla quota 30€.';
+    if(billRow) billRow.style.display='none';
+  } else {
+    cb.checked=false;
+    btnMe.style.background='var(--accent)';btnMe.style.color='#1a1a1a';btnMe.style.borderColor='var(--accent)';
+    btnFit.style.background='transparent';btnFit.style.color='var(--text)';btnFit.style.borderColor='var(--border)';
+    if(hint) hint.textContent='L\'importo conta come tuo incasso.';
+    if(billRow) billRow.style.display='flex';
+  }
 }
 
 function updateBillToggle(prefix){
@@ -1854,10 +1893,27 @@ function saveAcconto() {
   const p = DB.packages.find(x => x.id === accontoPkgId);
   const cl = DB.clients.find(c => c.id === p?.clientId);
   const pyId = uid();
-  // Save payment record
-  const py = { id: pyId, packageId: accontoPkgId, amount: +amount, date, method, note, createdAt: todayStr() };
+  const toFitactive = document.getElementById('acconto-fitactive').checked && p?.isPack99;
+  // Save payment record (tag if it went to Fitactive)
+  const py = { id: pyId, packageId: accontoPkgId, amount: +amount, date, method, note, createdAt: todayStr(), toFitactive: toFitactive };
   const payments = DB.payments; payments.push(py); DB.payments = payments;
-  // Auto-create transaction in contabilità
+
+  if(toFitactive){
+    // Money goes to Fitactive: NOT your income, NO transaction, NO receipt.
+    // Update the package's Fitactive quota tracking.
+    var pkgs=DB.packages; var pi=pkgs.findIndex(x=>x.id===accontoPkgId);
+    if(pi>=0){
+      pkgs[pi].pack99Acconto=(pkgs[pi].pack99Acconto||0)+ +amount;
+      if(pkgs[pi].pack99Acconto >= (pkgs[pi].fitactiveQuota||30)) pkgs[pi].fitactivePaid=true;
+      DB.packages=pkgs;
+    }
+    closeAccontoModal();
+    renderPackages();
+    if(document.getElementById('dash-overdue'))renderDashboard();
+    return;
+  }
+
+  // Normal payment to the PT → income transaction
   const paid = DB.payments.filter(py2 => py2.packageId === accontoPkgId).reduce((s,py2) => s + +py2.amount, 0);
   const total = +p?.price || 0;
   const isSaldo = paid >= total && total > 0;
@@ -3637,6 +3693,18 @@ function checkAutoBackup() {
 }
 
 if(localStorage.getItem('pt_theme')==='light'){document.body.classList.add('light-theme');}
+// One-time cleanup: remove old Pack 99 acconto entries that were wrongly saved as PT income
+if(!localStorage.getItem('pt_pack99_tx_cleanup')){
+  try{
+    var _tx=DB.transactions.filter(function(t){
+      var d=(t.description||'');
+      // remove the old auto entries that represented the Fitactive acconto
+      return !(/Acconto Pack 99/i.test(d));
+    });
+    DB.transactions=_tx;
+    localStorage.setItem('pt_pack99_tx_cleanup','1');
+  }catch(e){}
+}
 renderDashboard();
 checkLeadNotifs();
 checkAutoBackup();

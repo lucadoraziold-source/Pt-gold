@@ -617,7 +617,7 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
         </div>
       </div>
       <button onclick="confirmReset()" style="background:transparent;color:var(--danger);border:1.5px solid var(--danger);border-radius:50px;padding:11px 22px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;width:100%">🗑 Cancella tutti i dati</button>
-      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 5.0</div>
+      <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Active PT Manager · GOLD EDITION 5.4</div>
     </div>
   </div>
 
@@ -890,7 +890,7 @@ const MONTHS=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','
 const DAYS=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
 
 let currentPage='dashboard',calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calSelected=todayStr();
-let editingSession=null,editingClient=null,editingPackage=null,pkgFilter='attivo',txType='entrata',clientDetailId=null,deductingPkgId=null,accontoPkgId=null,billFilterOn=false;
+let editingSession=null,editingClient=null,editingPackage=null,pkgFilter='attivo',txType='entrata',clientDetailId=null,deductingPkgId=null,accontoPkgId=null,billFilterOn=false,billExpanded=false;
 
 function navigate(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -942,18 +942,26 @@ function renderToBill(){
   if(!pending.length){ el.innerHTML=''; return; }
   pending.sort(function(a,b){return b.date.localeCompare(a.date);});
   var total=pending.reduce(function(s,t){return s+ +t.amount;},0);
+  // first few names as a preview
+  var names=pending.slice(0,3).map(function(t){var cl=DB.clients.find(function(c){return c.id===t.clientId;});return cl?cl.name:(t.description||'—');});
+  var preview=names.join(', ')+(pending.length>3?' e altri '+(pending.length-3):'');
   el.innerHTML='<div class="card" style="border-left:3px solid var(--info);background:rgba(52,152,219,.06)">'+
-    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">'+
     '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🧾</span>'+
     '<div style="font-weight:700;font-size:14px">Da fatturare ('+pending.length+')</div></div>'+
     '<div class="bebas" style="font-size:20px;color:var(--info)">'+fmtMoney(total)+'</div></div>'+
-    pending.slice(0,6).map(function(t){
-      var cl=DB.clients.find(function(c){return c.id===t.clientId;});
-      return '<div class="row-item" style="font-size:13px"><div><b>'+(cl?cl.name:t.description)+'</b><br><span class="text-muted" style="font-size:11px">'+fmt(t.date)+' · '+t.description+'</span></div>'+
-        '<button onclick="toggleInvoiced(\''+t.id+'\')" style="border:none;cursor:pointer;font-size:11px;font-weight:700;padding:5px 12px;border-radius:50px;background:rgba(46,204,113,.15);color:var(--success);flex-shrink:0">Segna fatturato</button></div>';
-    }).join('')+
-    (pending.length>6?'<div class="text-muted" style="font-size:12px;text-align:center;margin-top:8px">e altri '+(pending.length-6)+'... (vedi sezione Cassa)</div>':'')+
+    '<div class="text-muted" style="font-size:12px;margin-bottom:12px">'+preview+'</div>'+
+    '<button onclick="goToBilling()" style="width:100%;border:none;background:var(--info);color:#fff;border-radius:50px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Gestisci in Cassa →</button>'+
     '</div>';
+}
+
+function goToBilling(){
+  navigate('accounting');
+  // force the "solo da fatturare" filter ON
+  billFilterOn=true;
+  var btn=document.getElementById('acc-tobill-filter');
+  if(btn){ btn.style.background='var(--info)'; btn.style.color='#fff'; btn.textContent='🧾 Mostra tutti i movimenti'; }
+  if(typeof renderAccounting==='function') renderAccounting();
 }
 
 function renderTodayDone(){
@@ -1103,7 +1111,7 @@ function renderClients(){
   document.getElementById('client-detail').classList.add('hidden');
   document.getElementById('client-list-view').classList.remove('hidden');
   const search=(document.getElementById('client-search')?.value||'').toLowerCase();
-  const clients=DB.clients.filter(c=>c.name.toLowerCase().includes(search)||(c.phone||'').includes(search)||(c.cf||'').toLowerCase().includes(search));
+  const clients=DB.clients.filter(c=>c.name.toLowerCase().includes(search)||(c.phone||'').includes(search)||(c.cf||'').toLowerCase().includes(search)).sort((a,b)=>(a.name||'').localeCompare(b.name||'','it',{sensitivity:'base'}));
   const sessions=DB.sessions,packages=DB.packages,grid=document.getElementById('clients-grid');
   if(clients.length===0){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Nessun cliente trovato</div>';return;}
   grid.innerHTML=clients.map(c=>{
@@ -1411,20 +1419,31 @@ function pkgRemaining(p){
   const used=DB.deductions.filter(d=>d.packageId===p.id).length;
   return Math.max(0,(p.totalSessions||0)-used);
 }
+function pkgPaidAmount(p){
+  return DB.payments.filter(py=>py.packageId===p.id).reduce((s,py)=>s+ +py.amount,0);
+}
+function pkgIsPaid(p){
+  return pkgPaidAmount(p) >= (+p.price||0);
+}
 function pkgIsExpired(p){
   if(!p.endDate) return false;
   const end=new Date(p.endDate+'T23:59:59');
   return end < new Date();
 }
 function pkgIsTrulyActive(p){
-  // truly active = marked attivo, still has sessions, and not past its end date
-  return p.status==='attivo' && pkgRemaining(p)>0 && !pkgIsExpired(p);
+  // Active = marked attivo AND not fully concluded.
+  // A package is "concluded" only when it's BOTH out of sessions (or expired) AND fully paid.
+  if(p.status!=='attivo') return false;
+  var finished = pkgRemaining(p)<=0 || pkgIsExpired(p);
+  if(!finished) return true;          // still has sessions/time → active
+  if(!pkgIsPaid(p)) return true;       // finished but NOT paid → keep visible in Attivi
+  return false;                         // finished AND paid → concluded
 }
 function renderPackages(){
   let packages;
   if(pkgFilter==='tutti') packages=DB.packages;
   else if(pkgFilter==='attivo') packages=DB.packages.filter(pkgIsTrulyActive);
-  else if(pkgFilter==='scaduto') packages=DB.packages.filter(p=>p.status==='scaduto' || (p.status==='attivo' && (pkgRemaining(p)<=0 || pkgIsExpired(p))));
+  else if(pkgFilter==='scaduto') packages=DB.packages.filter(p=>p.status==='scaduto' || (p.status==='attivo' && (pkgRemaining(p)<=0 || pkgIsExpired(p)) && pkgIsPaid(p)));
   else packages=DB.packages.filter(p=>p.status===pkgFilter);
   const clients=DB.clients,deductions=DB.deductions;
   const statusColor={attivo:'var(--success)',scaduto:'var(--danger)',sospeso:'var(--warning)'};
@@ -1459,6 +1478,7 @@ function renderPackages(){
             }
             return '<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(243,156,18,.14);color:var(--warning)">🧾 Rimanente a Fitactive: '+fmtMoney(residuo)+(acc>0?' (acconto '+fmtMoney(acc)+' dato)':'')+' <button onclick="toggleFitactiveQuota(\''+p.id+'\')" style="margin-left:6px;border:none;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:11px;font-weight:700">segna versato</button></div>';
           })():''}
+          ${(remaining<=0 && pkgOwed>0)?`<div style="margin-top:8px;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:700;background:rgba(255,59,59,.14);color:var(--danger)">⚠️ Sedute finite — ancora da saldare ${fmtMoney(pkgOwed)}</div>`:''}
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div class="bebas" style="font-size:28px;color:var(--accent);line-height:1">${fmtMoney(p.price)}</div>
@@ -3401,13 +3421,19 @@ function leadsReportGenerate() {
   if(!periodo.trim()) periodo = 'Tutti i contatti';
 
   var freeYes=0, gestitiYes=0;
+  var pack99Yes=0;
   var rows = filtered.map(function(l){
     var freeEseguita = (l.freeLesson==='si');
     var gestito = (l.status==='gestito');
+    var hasPack99 = !!l.pack99Active;
     if(freeEseguita) freeYes++;
     if(gestito) gestitiYes++;
+    if(hasPack99) pack99Yes++;
     function badge(ok){
       return '<span style="display:inline-block;min-width:46px;text-align:center;padding:3px 10px;border-radius:50px;font-size:12px;font-weight:700;color:#fff;background:'+(ok?'#27ae60':'#e74c3c')+'">'+(ok?'SÌ':'NO')+'</span>';
+    }
+    function badgePack(ok){
+      return ok?'<span style="display:inline-block;min-width:46px;text-align:center;padding:3px 10px;border-radius:50px;font-size:12px;font-weight:700;color:#1a1a1a;background:#E0A82E">⭐ SÌ</span>':'<span style="color:#bbb">—</span>';
     }
     var noteTxt = (l.notes||'').trim();
     var noteEsc = noteTxt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -3415,6 +3441,7 @@ function leadsReportGenerate() {
       +'<td style="padding:11px 8px;font-weight:600;color:#1a1a1a">'+(l.name||'—')+'</td>'
       +'<td style="padding:11px 8px;text-align:center">'+badge(freeEseguita)+'</td>'
       +'<td style="padding:11px 8px;text-align:center">'+badge(gestito)+'</td>'
+      +'<td style="padding:11px 8px;text-align:center">'+badgePack(hasPack99)+'</td>'
       +'<td style="padding:11px 8px;font-size:12px;color:#555">'+(noteEsc||'<span style="color:#bbb">—</span>')+'</td>'
       +'</tr>';
   }).join('');
@@ -3428,7 +3455,7 @@ function leadsReportGenerate() {
     +'.bar{height:4px;background:#E0A82E;border-radius:2px;margin-bottom:18px}'
     +'table{width:100%;border-collapse:collapse;font-size:14px}'
     +'thead th{background:#E0A82E;color:#fff;padding:11px 8px;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.5px}'
-    +'thead th:nth-child(2),thead th:nth-child(3){text-align:center}'
+    +'thead th:nth-child(2),thead th:nth-child(3),thead th:nth-child(4){text-align:center}'
     +'.summary{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}'
     +'.scard{flex:1;min-width:90px;background:#f7f7f7;border:1px solid #eee;border-radius:10px;padding:12px;text-align:center}'
     +'.scard .n{font-size:24px;font-weight:800;color:#E0A82E}.scard .l{font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}'
@@ -3441,8 +3468,9 @@ function leadsReportGenerate() {
     +'<div class="scard"><div class="n">'+filtered.length+'</div><div class="l">Contatti</div></div>'
     +'<div class="scard"><div class="n">'+freeYes+'</div><div class="l">Free eseguite</div></div>'
     +'<div class="scard"><div class="n">'+gestitiYes+'</div><div class="l">Gestiti</div></div>'
+    +'<div class="scard"><div class="n">'+pack99Yes+'</div><div class="l">Pack 99</div></div>'
     +'</div>'
-    +'<table><thead><tr><th>Nome e cognome</th><th>Free eseguita</th><th>Gestito</th><th>Note</th></tr></thead>'
+    +'<table><thead><tr><th>Nome e cognome</th><th>Free eseguita</th><th>Gestito</th><th>Pack 99</th><th>Note</th></tr></thead>'
     +'<tbody>'+rows+'</tbody></table>'
     +'<div class="footer">Report generato da Active PT Manager · '+new Date().toLocaleDateString('it-IT')+'</div>'
     +'</body></html>';

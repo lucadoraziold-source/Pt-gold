@@ -1,5 +1,5 @@
 // PT Manager SW v20 - network first, no stale cache
-const V = 'pt-gold-v26';
+const V = 'pt-gold-v30';
 self.addEventListener('install', function(e){ self.skipWaiting(); });
 self.addEventListener('activate', function(e){
   e.waitUntil(caches.keys().then(function(k){

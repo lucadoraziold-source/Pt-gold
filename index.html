@@ -661,11 +661,17 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
     <div class="flex-between" style="margin-top:4px;margin-bottom:12px">
       <div class="page-title" style="margin-bottom:0;font-size:clamp(24px,6vw,42px)">LEADS</div>
       <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="btn btn-secondary btn-sm" onclick="leadsReport()" style="border-color:var(--info);color:var(--info);padding:7px 12px;font-size:12px">📄 Report</button>
-        <button class="btn btn-secondary btn-sm" onclick="exportLeadsExcel()" style="border-color:var(--success);color:var(--success);padding:7px 12px;font-size:12px">📊 Excel</button>
-        <button class="btn btn-primary" style="padding:7px 16px;font-size:13px" onclick="openLeadModal()">+ Nuovo</button>
+        <button class="btn btn-secondary btn-sm" onclick="leadsReportBtn()" style="border-color:var(--info);color:var(--info);padding:7px 12px;font-size:12px">📄 Report</button>
+        <button class="btn btn-secondary btn-sm" id="btn-leads-excel" onclick="exportLeadsExcel()" style="border-color:var(--success);color:var(--success);padding:7px 12px;font-size:12px">📊 Excel</button>
+        <button class="btn btn-primary" id="btn-leads-new" style="padding:7px 16px;font-size:13px" onclick="openLeadModal()">+ Nuovo</button>
       </div>
     </div>
+    <!-- Vista: Lead / Contatti gestiti -->
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="chip active" id="lv-lead" onclick="setLeadsView('lead')">🎯 Lead</button>
+      <button class="chip" id="lv-gestiti" onclick="setLeadsView('gestiti')">🏆 Contatti gestiti</button>
+    </div>
+    <div id="leads-view-lead">
     <!-- Filtro mese/anno -->
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <select id="leads-filter-month" onchange="renderLeads()" style="flex:1;border-radius:50px;font-size:14px;min-width:0">
@@ -695,6 +701,12 @@ input[type="time"]:focus::-webkit-calendar-picker-indicator {
       <button class="chip" onclick="setLeadFilter('non_gestito')" id="lf-non_gestito" style="margin-left:6px">❌ Non gestiti</button>
     </div>
     <div id="leads-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+    <div id="leads-view-gestiti" class="hidden">
+      <p style="font-size:12px;color:var(--muted);margin:0 0 12px">Chi ha un pacchetto attivo o è segnato come gestito. 🟠 pacchetto scaduto · 🔴 nessun rinnovo da 2 mesi · dopo 3 mesi esce da questa lista.</p>
+      <div class="stats-grid" style="margin-bottom:14px" id="gestiti-stats"></div>
+      <div id="gestiti-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
   </div>
 
 </main>
@@ -897,7 +909,9 @@ function navigate(page){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   document.getElementById('nav-'+page).classList.add('active');
+  if(page==='leads') resetLeadsScreen();
   currentPage=page; renderPage(page); updateMobileUI(page); if(page==='settings') loadSettings();
+  if(page==='leads') scrollLeadsToTop();
 }
 function renderPage(page){
   if(page==='dashboard')renderDashboard();
@@ -3061,6 +3075,7 @@ function setLeadFilter(f){
 }
 
 function renderLeads(){
+  if(leadsView==='gestiti'){ renderGestiti(); return; }
   var all=DB.leads;
   // Month/year filter
   var fMonth = document.getElementById('leads-filter-month') ? parseInt(document.getElementById('leads-filter-month').value)||0 : 0;
@@ -3074,7 +3089,7 @@ function renderLeads(){
     }
     return true;
   });
-  list.sort(function(a,b){var o={ricontattare:0,da_contattare:1,contattato:2,gestito:3,non_gestito:4};return(o[a.status]||2)-(o[b.status]||2);});
+  list.sort(function(a,b){return (a.name||'').trim().localeCompare((b.name||'').trim(),'it',{sensitivity:'base'});});
   // Stats scoped to the selected month/year (ignores the status chip filter,
   // so the numbers always reflect the chosen period)
   var scoped = all.filter(function(l){
@@ -3098,26 +3113,15 @@ function renderLeads(){
   if(!list.length){el.innerHTML='<div class="card"><div class="empty-state">Nessun lead</div></div>';return;}
   var today=todayStr();
 
-  // Group by month — SMART:
-  // - A lead always appears in its creation month.
-  // - If it's still "pending" (da_contattare / ricontattare / free programmata),
-  //   it ALSO appears in every month up to the current one, until it's resolved.
-  // - Once gestito or non_gestito, it appears ONLY in its creation month.
+  // Group by month of creation. A lead appears ONLY in the month it was added
+  // (no carry-forward into later months).
   var MESI=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
   var groups={};
   var groupOrder=[];
-  var nowD=new Date();
-  var nowKey=nowD.getFullYear()+'-'+String(nowD.getMonth()+1).padStart(2,'0');
 
   function addToGroup(key,label,lead){
     if(!groups[key]){groups[key]={label:label,items:[]};groupOrder.push(key);}
     groups[key].items.push(lead);
-  }
-
-  function isPending(l){
-    // pending = NOT yet resolved. Any lead not marked gestito/non_gestito
-    // keeps appearing up to the current month, even if added in past months.
-    return l.status!=='gestito' && l.status!=='non_gestito';
   }
 
   list.forEach(function(l){
@@ -3125,20 +3129,7 @@ function renderLeads(){
     var dt=new Date(d+'T12:00:00');
     var origKey=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');
     var origLabel=MESI[dt.getMonth()]+' '+dt.getFullYear();
-    // always in origin month
     addToGroup(origKey,origLabel,l);
-    // if pending, carry forward to following months up to current month
-    if(isPending(l) && origKey<nowKey){
-      var cursor=new Date(dt.getFullYear(),dt.getMonth()+1,1);
-      while(true){
-        var ck=cursor.getFullYear()+'-'+String(cursor.getMonth()+1).padStart(2,'0');
-        var cl2=MESI[cursor.getMonth()]+' '+cursor.getFullYear();
-        addToGroup(ck,cl2,l);
-        if(ck===nowKey) break;
-        if(ck>nowKey) break;
-        cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1);
-      }
-    }
   });
   groupOrder.sort(function(a,b){return b.localeCompare(a);}); // most recent first
 
@@ -3231,7 +3222,9 @@ function saveLead(){
   if(status==='contattato'&&!cDate)cDate=todayStr();
   var pack99On=document.getElementById('lead-pack99').checked;
   var wasPackActive=editingLead?((DB.leads.find(function(x){return x.id===editingLead;})||{}).pack99Active||false):false;
-  var l={id:editingLead||uid(),name:name,phone:document.getElementById('lead-phone').value.trim(),status:status,contactedDate:cDate,callbackDate:document.getElementById('lead-callback-date').value,freeLesson:document.getElementById('lead-free-lesson').value,freeLessonDate:document.getElementById('lead-free-date').value,freeLessonTime:document.getElementById('lead-free-time').value,notes:document.getElementById('lead-notes').value,pack99Active:pack99On,createdAt:editingLead?(DB.leads.find(function(x){return x.id===editingLead;})||{}).createdAt:todayStr()};
+  var prevLead=editingLead?(DB.leads.find(function(x){return x.id===editingLead;})||{}):{};
+  var l=Object.assign({},prevLead,{id:editingLead||uid(),name:name,phone:document.getElementById('lead-phone').value.trim(),status:status,contactedDate:cDate,callbackDate:document.getElementById('lead-callback-date').value,freeLesson:document.getElementById('lead-free-lesson').value,freeLessonDate:document.getElementById('lead-free-date').value,freeLessonTime:document.getElementById('lead-free-time').value,notes:document.getElementById('lead-notes').value,pack99Active:pack99On,createdAt:editingLead?prevLead.createdAt:todayStr()});
+  if(status==='gestito'){ l.gestitoDate=prevLead.gestitoDate||todayStr(); } else { delete l.gestitoDate; }
   var leads=DB.leads,idx=leads.findIndex(function(x){return x.id===l.id;});
   if(idx>=0)leads[idx]=l;else leads.push(l);
   DB.leads=leads;
@@ -3319,6 +3312,9 @@ function quickStatusLead(id,status){
   if(idx<0)return;
   leads[idx].status=status;
   if(status==='contattato'&&!leads[idx].contactedDate)leads[idx].contactedDate=todayStr();
+  // data da cui parte il conteggio dei mesi per i contatti gestiti
+  if(status==='gestito'){ if(!leads[idx].gestitoDate) leads[idx].gestitoDate=todayStr(); }
+  else { delete leads[idx].gestitoDate; }
   DB.leads=leads;
   // When marked "gestito", auto-add to clients (no duplicates)
   if(status==='gestito'){
@@ -3336,6 +3332,247 @@ function checkLeadNotifs(){
     var dt=new Date(l.callbackDate+'T09:00:00'),now=new Date();
     if(dt>now)setTimeout(function(){new Notification('🎯 Ricontattare: '+l.name,{icon:'/icon-192.png',tag:'lead-'+l.id});},dt.getTime()-now.getTime());
   });
+}
+
+// ─── VISTA LEAD / CONTATTI GESTITI ────────────────────────────────────────────
+var leadsView='lead';
+
+// Ogni volta che si entra nella sezione Lead: mese corrente, in cima, ordine alfabetico
+function resetLeadsScreen(){
+  var now=new Date();
+  var mSel=document.getElementById('leads-filter-month'), ySel=document.getElementById('leads-filter-year');
+  if(ySel){
+    var y=String(now.getFullYear());
+    if(!Array.prototype.some.call(ySel.options,function(o){return o.value===y;})){
+      var o=document.createElement('option');o.value=y;o.textContent=y;ySel.appendChild(o);
+    }
+    ySel.value=y;
+  }
+  if(mSel) mSel.value=String(now.getMonth()+1);
+  leadFilter='tutti';
+  ['tutti','da_contattare','contattato','ricontattare','gestito','non_gestito'].forEach(function(x){var b=document.getElementById('lf-'+x);if(b)b.className='chip'+(x==='tutti'?' active':'');});
+  leadsView='lead';
+  applyLeadsView();
+}
+function scrollLeadsToTop(){
+  function go(){
+    window.scrollTo(0,0);
+    var m=document.getElementById('main'); if(m) m.scrollTop=0;
+    if(document.documentElement) document.documentElement.scrollTop=0;
+    if(document.body) document.body.scrollTop=0;
+  }
+  go(); setTimeout(go,0); setTimeout(go,60);
+}
+function applyLeadsView(){
+  var g=leadsView==='gestiti';
+  var a=document.getElementById('leads-view-lead'), b=document.getElementById('leads-view-gestiti');
+  if(a) a.classList.toggle('hidden',g);
+  if(b) b.classList.toggle('hidden',!g);
+  var c1=document.getElementById('lv-lead'), c2=document.getElementById('lv-gestiti');
+  if(c1) c1.className='chip'+(g?'':' active');
+  if(c2) c2.className='chip'+(g?' active':'');
+  var ex=document.getElementById('btn-leads-excel'), nw=document.getElementById('btn-leads-new');
+  if(ex) ex.style.display=g?'none':'';
+  if(nw) nw.style.display=g?'none':'';
+}
+function setLeadsView(v){
+  leadsView=v;
+  applyLeadsView();
+  renderLeads();
+  scrollLeadsToTop();
+}
+function leadsReportBtn(){
+  if(leadsView==='gestiti') gestitiReport(); else leadsReport();
+}
+
+// ─── CONTATTI GESTITI ─────────────────────────────────────────────────────────
+function gAddMonths(dateStr,n){
+  var d=new Date(dateStr+'T12:00:00');
+  var day=d.getDate();
+  d.setDate(1); d.setMonth(d.getMonth()+n);
+  var last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  d.setDate(Math.min(day,last));
+  return d;
+}
+function gNormPhone(s){return (s||'').replace(/[^0-9]/g,'');}
+function gNormName(s){return (s||'').trim().toLowerCase().replace(/\s+/g,' ');}
+function gLastDeductionDate(p){
+  var ds=DB.deductions.filter(function(d){return d.packageId===p.id && d.date;}).map(function(d){return d.date;}).sort();
+  return ds.length?ds[ds.length-1]:'';
+}
+// Pacchetto "finito": scaduto di data, sedute esaurite o segnato scaduto (indipendente dal pagamento)
+function gPkgFinished(p){
+  return p.status==='scaduto' || pkgRemaining(p)<=0 || pkgIsExpired(p);
+}
+// Data in cui il pacchetto è terminato (la prima tra fine sedute e data di scadenza)
+function gPkgEndedOn(p){
+  var c=[];
+  if(pkgRemaining(p)<=0){ var ld=gLastDeductionDate(p); if(ld) c.push(ld); }
+  if(p.endDate && pkgIsExpired(p)) c.push(p.endDate);
+  if(!c.length){ if(p.endDate) c.push(p.endDate); else { var ld2=gLastDeductionDate(p); if(ld2) c.push(ld2); else if(p.startDate) c.push(p.startDate); } }
+  c.sort();
+  return c[0]||todayStr();
+}
+
+// Costruisce l'elenco dei contatti gestiti con il relativo stato
+function buildGestiti(){
+  var today=todayStr();
+  var leads=DB.leads, clients=DB.clients, packages=DB.packages;
+
+  // Migrazione: lead già "gestito" senza data → il conteggio parte da oggi
+  var changed=false;
+  leads.forEach(function(l){ if(l.status==='gestito' && !l.gestitoDate){ l.gestitoDate=today; changed=true; } });
+  if(changed) DB.leads=leads;
+
+  function clientForLead(l){
+    var ph=gNormPhone(l.phone), nm=gNormName(l.name);
+    var byPhone=ph?clients.find(function(c){return gNormPhone(c.phone)===ph;}):null;
+    return byPhone||clients.find(function(c){return gNormName(c.name)===nm;})||null;
+  }
+  function leadForClient(c){
+    var ph=gNormPhone(c.phone), nm=gNormName(c.name);
+    var byPhone=ph?leads.find(function(l){return gNormPhone(l.phone)===ph;}):null;
+    return byPhone||leads.find(function(l){return gNormName(l.name)===nm;})||null;
+  }
+
+  var entries={};
+  function entryFor(key,base){ if(!entries[key]) entries[key]=base; return entries[key]; }
+
+  // 1) lead segnati gestito
+  leads.filter(function(l){return l.status==='gestito';}).forEach(function(l){
+    var c=clientForLead(l);
+    var key=c?('c:'+c.id):('l:'+l.id);
+    var e=entryFor(key,{name:l.name,phone:l.phone,leadId:l.id,clientId:c?c.id:null,gestitoDate:l.gestitoDate||today,marked:true});
+    e.leadId=l.id; e.marked=true; e.gestitoDate=l.gestitoDate||today;
+  });
+  // 2) clienti con pacchetti (attivi, o scaduti da meno di 3 mesi)
+  clients.forEach(function(c){
+    var pk=packages.filter(function(p){return p.clientId===c.id && p.status!=='sospeso';});
+    if(!pk.length) return;
+    var l=leadForClient(c);
+    var e=entryFor('c:'+c.id,{name:c.name,phone:c.phone,leadId:l?l.id:null,clientId:c.id,gestitoDate:null,marked:false});
+    if(!e.clientId) e.clientId=c.id;
+  });
+
+  var out=[];
+  Object.keys(entries).forEach(function(k){
+    var e=entries[k];
+    var pk=e.clientId?packages.filter(function(p){return p.clientId===e.clientId && p.status!=='sospeso';}):[];
+    var active=pk.filter(function(p){return !gPkgFinished(p);});
+    var ref=null, state, activeInfo='';
+    if(active.length){
+      state='attivo';
+      activeInfo=active.map(function(p){return p.name+' ('+pkgRemaining(p)+' sedute)';}).join(' · ');
+    } else if(pk.length){
+      state='scaduto';
+      ref=pk.map(gPkgEndedOn).sort().pop();
+    } else {
+      state='senza';
+      ref=e.gestitoDate||today;
+    }
+    if(state!=='attivo'){
+      if(gAddMonths(ref,3)<=new Date(today+'T12:00:00')) return;           // 3 mesi → esce dalla lista
+      if(gAddMonths(ref,2)<=new Date(today+'T12:00:00')) state=(state==='scaduto'?'scaduto_rosso':'senza_rosso');
+    }
+    e.state=state; e.ref=ref; e.activeInfo=activeInfo;
+    out.push(e);
+  });
+  out.sort(function(a,b){return (a.name||'').trim().localeCompare((b.name||'').trim(),'it',{sensitivity:'base'});});
+  return out;
+}
+
+function gestitoMeta(e){
+  // restituisce {color,bg,label,detail}
+  if(e.state==='attivo') return {color:'var(--success)',bg:'rgba(46,204,113,.12)',pdf:'#27ae60',label:'✅ Pacchetto attivo',detail:e.activeInfo};
+  if(e.state==='scaduto') return {color:'var(--warning)',bg:'rgba(243,156,18,.16)',pdf:'#e67e22',label:'🟠 Gestito da rinnovare',detail:'Pacchetto scaduto il '+fmt(e.ref)};
+  if(e.state==='scaduto_rosso') return {color:'var(--danger)',bg:'rgba(255,59,59,.14)',pdf:'#e74c3c',label:'🔴 Da rinnovare da oltre 2 mesi',detail:'Pacchetto scaduto il '+fmt(e.ref)+' · esce dalla lista dopo 3 mesi'};
+  if(e.state==='senza_rosso') return {color:'var(--danger)',bg:'rgba(255,59,59,.14)',pdf:'#e74c3c',label:'🔴 Nessun pacchetto da oltre 2 mesi',detail:'Gestito il '+fmt(e.ref)+' · esce dalla lista dopo 3 mesi'};
+  return {color:'var(--accent)',bg:'rgba(224,168,46,.12)',pdf:'#E0A82E',label:'🏆 Gestito',detail:'Gestito il '+fmt(e.ref)+' · nessun pacchetto'};
+}
+
+function renderGestiti(){
+  var list=buildGestiti();
+  var nAtt=list.filter(function(e){return e.state==='attivo';}).length;
+  var nOra=list.filter(function(e){return e.state==='scaduto';}).length;
+  var nRos=list.filter(function(e){return e.state==='scaduto_rosso'||e.state==='senza_rosso';}).length;
+  var se=document.getElementById('gestiti-stats');
+  if(se) se.innerHTML=[
+    {icon:'🏆',label:'Gestiti',value:list.length,color:'var(--accent)'},
+    {icon:'✅',label:'Attivi',value:nAtt,color:'var(--success)'},
+    {icon:'🟠',label:'Da rinnovare',value:nOra,color:'var(--warning)'},
+    {icon:'🔴',label:'Oltre 2 mesi',value:nRos,color:'var(--danger)'}
+  ].map(function(s){return'<div class="stat-card"><div class="stat-icon">'+s.icon+'</div><div class="stat-value" style="color:'+s.color+'">'+s.value+'</div><div class="stat-label">'+s.label+'</div></div>';}).join('');
+  var el=document.getElementById('gestiti-list');
+  if(!el) return;
+  el.innerHTML='';
+  if(!list.length){el.innerHTML='<div class="card"><div class="empty-state">Nessun contatto gestito</div></div>';return;}
+  list.forEach(function(e){
+    var m=gestitoMeta(e);
+    var card=document.createElement('div');card.className='card';
+    if(e.state!=='attivo' && e.state!=='senza') card.style.borderLeft='4px solid '+m.color;
+    if(e.state==='scaduto'||e.state==='scaduto_rosso'||e.state==='senza_rosso') card.style.background=m.bg;
+    if(e.leadId){ (function(id){card.onclick=function(){openLeadModal(id);};})(e.leadId); }
+    var top=document.createElement('div');top.className='flex-between';top.style.marginBottom='6px';
+    var nd=document.createElement('div');nd.style.cssText='font-weight:700;font-size:16px';nd.textContent=e.name||'—';
+    top.appendChild(nd);
+    var badge=document.createElement('span');badge.className='tag';badge.style.cssText='background:'+m.bg+';color:'+m.color+';font-weight:700';badge.textContent=m.label;
+    top.appendChild(badge);card.appendChild(top);
+    if(e.phone){var tel=document.createElement('a');tel.href='tel:'+e.phone;tel.style.cssText='color:var(--accent);font-size:13px;text-decoration:none;display:inline-block;margin-bottom:4px';tel.onclick=function(ev){ev.stopPropagation();};tel.textContent='📞 '+e.phone;card.appendChild(tel);}
+    var dt=document.createElement('div');dt.style.cssText='font-size:12px;color:'+(e.state==='attivo'||e.state==='senza'?'var(--muted)':m.color)+';font-weight:'+(e.state==='attivo'||e.state==='senza'?'400':'600');dt.textContent=m.detail;card.appendChild(dt);
+    if(e.phone){
+      var bw=document.createElement('button');bw.textContent='💬 WA';
+      bw.style.cssText='width:100%;margin-top:10px;background:rgba(37,211,102,.1);border:1.5px solid #25D366;color:#25D366;border-radius:50px;padding:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';
+      (function(p,n){bw.onclick=function(ev){ev.stopPropagation();var tmpl=getWATemplate('lead').replace('{nome}',n);window.open('https://wa.me/'+waNumber(p)+'?text='+encodeURIComponent(tmpl),'_blank');};})(e.phone,(e.name||'').split(' ')[0]);
+      card.appendChild(bw);
+    }
+    el.appendChild(card);
+  });
+}
+
+function gestitiReport(){
+  var list=buildGestiti();
+  if(!list.length){ alert('Nessun contatto gestito da riportare.'); return; }
+  var prof=JSON.parse(localStorage.getItem('pt_profile')||'{}');
+  var ptName=prof.name||'Active PT Manager';
+  function esc(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  var nAtt=list.filter(function(e){return e.state==='attivo';}).length;
+  var nOra=list.filter(function(e){return e.state==='scaduto';}).length;
+  var nRos=list.filter(function(e){return e.state==='scaduto_rosso'||e.state==='senza_rosso';}).length;
+  var rows=list.map(function(e){
+    var m=gestitoMeta(e);
+    var rowBg=(e.state==='scaduto')?'#fff4e5':(e.state==='scaduto_rosso'||e.state==='senza_rosso')?'#fdecea':'#fff';
+    return '<tr style="border-bottom:1px solid #eee;background:'+rowBg+'">'
+      +'<td style="padding:11px 8px;font-weight:600;color:#1a1a1a">'+esc(e.name)+'</td>'
+      +'<td style="padding:11px 8px;font-size:12px;color:#555">'+esc(e.phone||'—')+'</td>'
+      +'<td style="padding:11px 8px"><span style="display:inline-block;padding:3px 10px;border-radius:50px;font-size:12px;font-weight:700;color:#fff;background:'+m.pdf+'">'+esc(m.label.replace(/^[^\wÀ-ÿ]+/,''))+'</span></td>'
+      +'<td style="padding:11px 8px;font-size:12px;color:#555">'+esc(m.detail)+'</td>'
+      +'</tr>';
+  }).join('');
+  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    +'<style>body{font-family:-apple-system,Arial,sans-serif;margin:0;padding:24px;color:#1a1a1a;background:#fff}'
+    +'h1{font-size:24px;margin:0 0 2px}.sub{color:#888;font-size:13px;margin-bottom:18px}'
+    +'.bar{height:4px;background:#E0A82E;border-radius:2px;margin-bottom:18px}'
+    +'table{width:100%;border-collapse:collapse;font-size:14px}'
+    +'thead th{background:#E0A82E;color:#fff;padding:11px 8px;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.5px}'
+    +'.summary{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}'
+    +'.scard{flex:1;min-width:90px;background:#f7f7f7;border:1px solid #eee;border-radius:10px;padding:12px;text-align:center}'
+    +'.scard .n{font-size:24px;font-weight:800;color:#E0A82E}.scard .l{font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}'
+    +'.footer{margin-top:24px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#999;text-align:center}'
+    +'</style></head><body>'
+    +'<h1>Report Contatti Gestiti</h1>'
+    +'<div class="sub">'+esc(ptName)+' · aggiornato al '+new Date().toLocaleDateString('it-IT')+'</div>'
+    +'<div class="bar"></div>'
+    +'<div class="summary">'
+    +'<div class="scard"><div class="n">'+list.length+'</div><div class="l">Gestiti</div></div>'
+    +'<div class="scard"><div class="n">'+nAtt+'</div><div class="l">Pacchetto attivo</div></div>'
+    +'<div class="scard"><div class="n" style="color:#e67e22">'+nOra+'</div><div class="l">Da rinnovare</div></div>'
+    +'<div class="scard"><div class="n" style="color:#e74c3c">'+nRos+'</div><div class="l">Oltre 2 mesi</div></div>'
+    +'</div>'
+    +'<table><thead><tr><th>Nome e cognome</th><th>Telefono</th><th>Stato</th><th>Dettaglio</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody></table>'
+    +'<div class="footer">Report generato da Active PT Manager · '+new Date().toLocaleDateString('it-IT')+'</div>'
+    +'</body></html>';
+  showPDFOverlay(html,'report-contatti-gestiti-'+todayStr());
 }
 
 // ─── REPORT LEADS (PDF) ───────────────────────────────────────────────────────
@@ -3404,12 +3641,8 @@ function leadsReportGenerate() {
     if(fYear && !fMonth){                           // solo anno
       return d.getFullYear()===fYear;
     }
-    // mese + anno selezionati
-    if(origKey===selKey) return true;               // creato in quel mese
-    // carry-forward: se il contatto NON è ancora gestito/non gestito e il mese
-    // selezionato è SUCCESSIVO al mese di creazione, mostralo comunque
-    if(!leadIsResolved(l) && origKey < selKey) return true;
-    return false;
+    // mese + anno selezionati: solo i contatti aggiunti in quel mese
+    return origKey===selKey;
   });
 
   if(!filtered.length){ alert('Nessun contatto in questo periodo.'); return; }
@@ -3850,4 +4083,3 @@ if("serviceWorker" in navigator){window.addEventListener("load",function(){navig
 
 </body>
 </html>
-
